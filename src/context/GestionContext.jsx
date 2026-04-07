@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useState, useEffect, useCallback } from "react";
-import { getMeRequest } from "@/lib/auth";
 import {
   listGestionesRequest,
   getGestionActivaRequest,

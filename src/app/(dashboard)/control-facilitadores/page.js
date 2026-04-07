@@ -32,7 +32,7 @@ export default function ControlFacilitadoresPage() {
     loadDocumentos,
   } = useControlFacilitadores();
 
-  const { user } = useAuth();
+  const { usuario } = useAuth();
   const [facilitadores, setFacilitadores] = useState([]);
   const [selectedFacilitador, setSelectedFacilitador] = useState("");
   const [selectedFecha, setSelectedFecha] = useState("");
@@ -119,7 +119,7 @@ export default function ControlFacilitadoresPage() {
   };
 
   // Solo admin puede ver este panel
-  if (user?.rol !== "admin") {
+  if (usuario?.rol !== "Administrador") {
     return (
       <div className="space-y-6">
         <Alert

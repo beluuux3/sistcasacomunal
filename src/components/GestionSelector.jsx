@@ -15,7 +15,7 @@ const TRIMESTRE_LABELS = {
 export default function GestionSelector() {
   const { gestionActiva, gestiones, cambiarGestion, isLoading, error } =
     useGestion();
-  const { user } = useAuth();
+  const { usuario } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
   if (isLoading || !gestionActiva) {
@@ -26,7 +26,7 @@ export default function GestionSelector() {
     );
   }
 
-  const isAdmin = user?.rol === "admin";
+  const isAdmin = usuario?.rol === "Administrador";
   const trimestreLabel =
     TRIMESTRE_LABELS[gestionActiva.trimestre] || gestionActiva.trimestre;
   const displayName = `${gestionActiva.anio} - T${gestionActiva.trimestre}`;

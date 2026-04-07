@@ -27,23 +27,25 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Log detallado del error
-    console.error("API Error:", {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message,
-    });
+    if (error.response) {
+      // El servidor respondió con un código de error
+      console.error(`API Error ${error.response.status}:`, error.response.data);
 
-    // Si error 401/403, limpiar token y redirigir a login
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("usuario");
-      // Redirigir a login
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+      if (error.response.status === 401 || error.response.status === 403) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("usuario");
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
       }
+    } else if (error.request) {
+      // La petición se envió pero no se recibió respuesta (servidor dormido, timeout, sin red)
+      console.error("Network Error (sin respuesta del servidor):", error.message);
+    } else {
+      // Error al configurar la petición
+      console.error("Request setup error:", error.message);
     }
+
     return Promise.reject(error);
   },
 );

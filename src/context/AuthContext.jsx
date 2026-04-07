@@ -56,8 +56,9 @@ export function AuthProvider({ children }) {
 
       return userData;
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.detail || err.message || "Error al iniciar sesión";
+      const errorMessage = !err.response
+        ? "No se pudo conectar al servidor. Si es la primera vez que lo usa hoy, espere unos segundos e intente de nuevo."
+        : (err.response?.data?.detail ?? err.message ?? "Error al iniciar sesión");
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

@@ -380,26 +380,6 @@ export const getHistorialAsistenciaRequest = async (tallerId, fecha = null) => {
   return response.data;
 };
 
-/**
- * Registrar asistencia a actividad
- * @param {number} actividadId
- * @param {number[]} participanteIds
- * @param {string} fecha - Formato YYYY-MM-DD
- * @returns {Promise<void>}
- */
-export const registrarAsistenciaActividadRequest = async (
-  actividadId,
-  participanteIds,
-  fecha,
-) => {
-  const response = await api.post("/actividades/asistencia", {
-    actividad_id: actividadId,
-    participante_ids: participanteIds,
-    fecha,
-  });
-  return response.data;
-};
-
 // ============== EVALUACIONES ==============
 
 /**
@@ -450,18 +430,6 @@ export const getEvaluacionesParticipanteRequest = async (participanteId) => {
   return response.data;
 };
 
-// ============== ACTIVIDADES ==============
-
-/**
- * Crear actividad
- * @param {Object} data
- * @returns {Promise<{id: number}>}
- */
-export const createActividadRequest = async (data) => {
-  const response = await api.post("/actividades", data);
-  return response.data;
-};
-
 // ============== REPORTES ==============
 
 /**
@@ -509,16 +477,6 @@ export const getReporteAsistenciaCasaRequest = async (
 };
 
 /**
- * Obtener reporte de evaluaciones de taller
- * @param {number} tallerId
- * @returns {Promise<Object>}
- */
-export const getReporteEvaluacionesTallerRequest = async (tallerId) => {
-  const response = await api.get(`/reportes/evaluaciones/${tallerId}`);
-  return response.data;
-};
-
-/**
  * Obtener reporte de actividad
  * @param {number} actividadId
  * @returns {Promise<Object>}
@@ -527,9 +485,6 @@ export const getReporteActividadRequest = async (actividadId) => {
   const response = await api.get(`/reportes/actividades/${actividadId}`);
   return response.data;
 };
-
-/**
-
 
 // ============== FACILITADORES ==============
 
@@ -677,18 +632,14 @@ export const listGestionesRequest = async () => {
 };
 
 /**
- * Obtener la gestión activa (del listado completo)
+ * Obtener la gestión activa
  * @returns {Promise<Object|null>}
  */
 export const getGestionActivaRequest = async () => {
   try {
-    // Obtener todas las gestiones y filtrar la activa
-    const response = await api.get("/gestiones");
-    const gestiones = Array.isArray(response.data) ? response.data : [];
-    const gestionActiva = gestiones.find((g) => g.activo === true);
-    return gestionActiva || null;
+    const response = await api.get("/gestiones/activa");
+    return response.data || null;
   } catch (err) {
-    // Si hay error, retorna null
     return null;
   }
 };
@@ -777,13 +728,7 @@ export const listActividadesRequest = async (
 
 /**
  * Crear actividad
- * @param {string} nombre
- * @param {string} fecha - YYYY-MM-DD
- * @param {string} [descripcion]
- * @param {boolean} [esGlobal=false]
- * @param {number} [facilitadorResponsableId]
- * @param {number} [gestionId]
- * @param {number[]} [casaIds] - Si es específica, lista de casas
+ * @param {Object} data - { nombre, fecha, descripcion?, es_global?, facilitador_responsable_id?, gestion_id?, casa_ids? }
  * @returns {Promise<Object>}
  */
 export const createActividadFullRequest = async (data) => {

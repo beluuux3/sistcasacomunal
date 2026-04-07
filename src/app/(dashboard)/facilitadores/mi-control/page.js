@@ -27,7 +27,7 @@ export default function MiControlPage() {
     checkOut,
     loadControles,
   } = useControlFacilitadores();
-  const { user } = useAuth();
+  const { usuario } = useAuth();
 
   const [estadoControl, setEstadoControl] = useState(null); // "no-iniciado", "en-proceso", "completado"
   const [isSaving, setIsSaving] = useState(false);
@@ -44,9 +44,9 @@ export default function MiControlPage() {
   const [errorGeo, setErrorGeo] = useState("");
 
   useEffect(() => {
-    loadControles(user?.id);
+    loadControles(usuario?.id);
     determineControlState();
-  }, [user?.id]);
+  }, [usuario?.id]);
 
   // Determinar estado del control
   const determineControlState = () => {
@@ -143,7 +143,7 @@ export default function MiControlPage() {
       setFotoCapturada(null);
       setCameraMode(null);
       setEstadoControl("en-proceso");
-      loadControles(user?.id);
+      loadControles(usuario?.id);
 
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
@@ -177,7 +177,7 @@ export default function MiControlPage() {
       setFotoCapturada(null);
       setCameraMode(null);
       setEstadoControl("completado");
-      loadControles(user?.id);
+      loadControles(usuario?.id);
 
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
@@ -194,7 +194,7 @@ export default function MiControlPage() {
   };
 
   // Solo facilitadores pueden acceder
-  if (user?.rol !== "facilitador") {
+  if (usuario?.rol !== "Facilitador") {
     return (
       <div className="space-y-6">
         <Alert

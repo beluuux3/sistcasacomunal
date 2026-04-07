@@ -9,7 +9,6 @@ import {
   Building2,
   BookOpen,
   Users2,
-  Users,
   MapPin,
   Phone,
   Clock,
@@ -18,19 +17,21 @@ import {
   Activity,
   Lock,
   Navigation,
+  RefreshCw,
+  BarChart3,
 } from "lucide-react";
 
 export default function Inicio() {
   const { usuario } = useAuth();
-  const { stats, isLoading, error, loadStats } = useDashboardStats();
+  const { stats, charts, isLoading, error, loadStats } = useDashboardStats();
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [loadStats]);
 
   const statCards = [
     {
-      label: "Total Casas",
+      label: "Casas Comunales",
       value: stats.total_casas,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
@@ -50,59 +51,178 @@ export default function Inicio() {
       bgColor: "bg-slate-50",
       icon: Users2,
     },
-    {
-      label: "Facilitadores",
-      value: stats.total_facilitadores,
-      color: "text-amber-600",
-      bgColor: "bg-amber-50",
-      icon: Users,
-    },
   ];
+
+  // Calcular el máximo para las barras de macrodistrito
+  const maxMacro =
+    charts.porMacrodistrito.length > 0
+      ? Math.max(...charts.porMacrodistrito.map((m) => m.total), 1)
+      : 1;
+
+  // Entradas de género
+  const generoEntries = Object.entries(charts.porGenero).filter(
+    ([, v]) => typeof v === "number",
+  );
+  const totalGenero = generoEntries.reduce((sum, [, v]) => sum + v, 0);
+
+  const generoColors = {
+    Masculino: "bg-blue-500",
+    Femenino: "bg-pink-500",
+    Otro: "bg-purple-500",
+    M: "bg-blue-500",
+    F: "bg-pink-500",
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-          Bienvenido, {usuario?.nombre_completo}
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-2">
-          Panel de control - Gestión de Casas Comunales
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            Bienvenido, {usuario?.nombre_completo}
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
+            Panel de control — Gestión de Casas Comunales
+          </p>
+        </div>
+
+        <button
+          onClick={loadStats}
+          disabled={isLoading}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+          title="Actualizar estadísticas"
+        >
+          <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+          <span className="hidden sm:inline">Actualizar</span>
+        </button>
       </div>
 
-      {/* Error Alert */}
-      {error && <Alert type="error" title="Error" message={error} />}
+      {error && (
+        <Alert
+          type="warning"
+          title="No se pudieron cargar las estadísticas"
+          message={error}
+        />
+      )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card key={stat.label} className={stat.bgColor}>
-              <div className="flex flex-col items-center gap-3">
-                <Icon size={32} className={stat.color} />
-                <p className="text-xs sm:text-sm text-gray-600 text-center">
-                  {stat.label}
-                </p>
-                {isLoading ? (
-                  <div className="h-8 w-8 animate-pulse bg-gray-300 rounded"></div>
-                ) : (
-                  <p className={`text-3xl sm:text-4xl font-bold ${stat.color}`}>
-                    {stat.value}
-                  </p>
-                )}
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+                  <Icon size={28} className={stat.color} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-500">{stat.label}</p>
+                  {isLoading ? (
+                    <div className="h-8 w-16 animate-pulse bg-gray-300 rounded mt-1" />
+                  ) : (
+                    <p className={`text-3xl font-bold ${stat.color}`}>
+                      {stat.value}
+                    </p>
+                  )}
+                </div>
               </div>
             </Card>
           );
         })}
       </div>
 
-      {/* Main Content */}
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Participantes por macrodistrito */}
+        <Card>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 size={20} className="text-blue-600" />
+              <h2 className="font-bold text-slate-900">Participantes por Macrodistrito</h2>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-6 bg-gray-200 rounded animate-pulse" />
+                ))}
+              </div>
+            ) : charts.porMacrodistrito.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">Sin datos disponibles</p>
+            ) : (
+              <div className="space-y-3">
+                {charts.porMacrodistrito.map((item) => {
+                  const pct = maxMacro > 0 ? Math.round((item.total / maxMacro) * 100) : 0;
+                  return (
+                    <div key={item.macrodistrito} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 font-medium">{item.macrodistrito}</span>
+                        <span className="text-gray-500 font-semibold">{item.total}</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Participantes por género */}
+        <Card>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Users2 size={20} className="text-slate-600" />
+              <h2 className="font-bold text-slate-900">Participantes por Género</h2>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-12 bg-gray-200 rounded animate-pulse" />
+                ))}
+              </div>
+            ) : generoEntries.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">Sin datos disponibles</p>
+            ) : (
+              <div className="space-y-4">
+                {generoEntries.map(([genero, count]) => {
+                  const pct = totalGenero > 0 ? Math.round((count / totalGenero) * 100) : 0;
+                  const barColor = generoColors[genero] ?? "bg-slate-500";
+                  return (
+                    <div key={genero} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 font-medium capitalize">{genero}</span>
+                        <span className="text-gray-500">
+                          {count} <span className="text-gray-400">({pct}%)</span>
+                        </span>
+                      </div>
+                      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${barColor} rounded-full transition-all duration-500`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="text-xs text-gray-400 pt-1">Total: {totalGenero} participantes</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Estado del Sistema */}
       <Card>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-1 h-8 bg-blue-600 rounded"></div>
+            <div className="w-1 h-8 bg-blue-600 rounded" />
             <h2 className="text-lg sm:text-xl font-bold text-slate-900">
               Estado del Sistema
             </h2>
@@ -112,9 +232,7 @@ export default function Inicio() {
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle size={20} className="text-green-600" />
-                <h3 className="font-semibold text-green-900">
-                  Sistema Operativo
-                </h3>
+                <h3 className="font-semibold text-green-900">Sistema Operativo</h3>
               </div>
               <p className="text-sm text-green-700">
                 Todos los módulos están funcionando correctamente
@@ -124,12 +242,10 @@ export default function Inicio() {
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center gap-2 mb-2">
                 <Activity size={20} className="text-blue-600" />
-                <h3 className="font-semibold text-blue-900">
-                  Datos en Tiempo Real
-                </h3>
+                <h3 className="font-semibold text-blue-900">Datos en Tiempo Real</h3>
               </div>
               <p className="text-sm text-blue-700">
-                Las estadísticas se actualizan automáticamente
+                Usa el botón <strong>Actualizar</strong> para refrescar las estadísticas
               </p>
             </div>
 
@@ -140,9 +256,9 @@ export default function Inicio() {
               </div>
               <p className="text-sm text-amber-700">
                 Conectado como{" "}
-                {usuario?.rol === "Administrador"
-                  ? "Administrador"
-                  : "Facilitador"}
+                <strong>
+                  {usuario?.rol === "Administrador" ? "Administrador" : "Facilitador"}
+                </strong>
               </p>
             </div>
 
@@ -156,82 +272,47 @@ export default function Inicio() {
               </p>
             </div>
           </div>
-
-          <div className="p-4 bg-gradient-to-r from-blue-100 to-slate-100 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb size={20} className="text-blue-600" />
-              <h3 className="font-semibold text-slate-900">Consejo</h3>
-            </div>
-            <p className="text-sm text-slate-700">
-              Haz clic en el icono de menú (≡) en tu dispositivo móvil para
-              expandir/contraer el sidebar y acceder a todos los módulos del
-              sistema.
-            </p>
-          </div>
         </div>
       </Card>
 
-      {/* Contactos Section */}
+      {/* Contactos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Casa Comunal Info */}
         <Card className="border-2 border-blue-200 bg-blue-50">
           <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 mb-4">
-                Casas Comunales del Adulto Mayor
-              </h3>
-            </div>
-
+            <h3 className="text-lg font-bold text-slate-900">
+              Casas Comunales del Adulto Mayor
+            </h3>
             <div className="space-y-3">
               <div className="flex gap-3">
-                <MapPin
-                  size={20}
-                  className="text-blue-600 flex-shrink-0 mt-1"
-                />
+                <MapPin size={20} className="text-blue-600 shrink-0 mt-1" />
                 <div>
-                  <p className="text-sm text-gray-600 font-semibold">
-                    Dirección
-                  </p>
+                  <p className="text-sm text-gray-600 font-semibold">Dirección</p>
                   <p className="text-sm text-gray-900">
                     Mercado Camacho lado Guardia Municipal
                   </p>
                 </div>
               </div>
-
               <div className="flex gap-3">
-                <Clock size={20} className="text-blue-600 flex-shrink-0 mt-1" />
+                <Clock size={20} className="text-blue-600 shrink-0 mt-1" />
                 <div>
                   <p className="text-sm text-gray-600 font-semibold">Horario</p>
-                  <p className="text-sm text-gray-900">
-                    Desde las 09:00 hasta las 16:00
-                  </p>
+                  <p className="text-sm text-gray-900">Desde las 09:00 hasta las 16:00</p>
                 </div>
               </div>
-
               <div className="flex gap-3">
-                <Phone size={20} className="text-blue-600 flex-shrink-0 mt-1" />
+                <Phone size={20} className="text-blue-600 shrink-0 mt-1" />
                 <div>
-                  <p className="text-sm text-gray-600 font-semibold">
-                    Información
-                  </p>
-                  <p className="text-sm text-gray-900 font-semibold">
-                    Cel. 75273874
-                  </p>
+                  <p className="text-sm text-gray-600 font-semibold">Información</p>
+                  <p className="text-sm text-gray-900 font-semibold">Cel. 75273874</p>
                 </div>
               </div>
             </div>
           </div>
         </Card>
 
-        {/* Soporte Info */}
         <Card className="border-2 border-amber-200 bg-amber-50">
           <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 mb-4">
-                Soporte Técnico
-              </h3>
-            </div>
-
+            <h3 className="text-lg font-bold text-slate-900">Soporte Técnico</h3>
             <div className="space-y-3">
               <div className="p-3 bg-white rounded-lg border border-amber-200">
                 <p className="text-sm font-semibold text-gray-900 mb-1">
@@ -239,21 +320,15 @@ export default function Inicio() {
                 </p>
                 <div className="flex items-center gap-2">
                   <Phone size={16} className="text-amber-600" />
-                  <p className="text-sm text-gray-900 font-semibold">
-                    67192700
-                  </p>
+                  <p className="text-sm text-gray-900 font-semibold">67192700</p>
                 </div>
               </div>
-
               <div className="p-3 bg-amber-100 rounded-lg border border-amber-300">
                 <div className="flex items-start gap-2">
-                  <Lightbulb
-                    size={16}
-                    className="text-amber-600 mt-1 flex-shrink-0"
-                  />
+                  <Lightbulb size={16} className="text-amber-600 mt-1 shrink-0" />
                   <p className="text-xs text-amber-900">
-                    Para reportar problemas técnicos o no poder acceder a
-                    funciones específicas, contacta a soporte.
+                    Para reportar problemas técnicos o no poder acceder a funciones
+                    específicas, contacta a soporte.
                   </p>
                 </div>
               </div>
