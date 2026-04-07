@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [casaActual, setCasaActualState] = useState(null);
 
   // Al cargar la app, restaurar sesión desde localStorage
   useEffect(() => {
@@ -58,7 +59,9 @@ export function AuthProvider({ children }) {
     } catch (err) {
       const errorMessage = !err.response
         ? "No se pudo conectar al servidor. Si es la primera vez que lo usa hoy, espere unos segundos e intente de nuevo."
-        : (err.response?.data?.detail ?? err.message ?? "Error al iniciar sesión");
+        : (err.response?.data?.detail ??
+          err.message ??
+          "Error al iniciar sesión");
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -70,8 +73,19 @@ export function AuthProvider({ children }) {
     setUsuario(null);
     setToken(null);
     setError(null);
+    setCasaActualState(null);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
+    localStorage.removeItem("casaActual");
+  };
+
+  const setCasaActual = (casa) => {
+    setCasaActualState(casa);
+    if (casa) {
+      localStorage.setItem("casaActual", JSON.stringify(casa));
+    } else {
+      localStorage.removeItem("casaActual");
+    }
   };
 
   return (
@@ -81,6 +95,8 @@ export function AuthProvider({ children }) {
         token,
         isLoading,
         error,
+        casaActual,
+        setCasaActual,
         login,
         logout,
       }}

@@ -42,6 +42,7 @@ export default function HorariosPage() {
     loadHorarios,
     loadCasasYFacilitadores,
     createHorario,
+    updateHorario,
     deleteHorario,
     getDiasDisponibles,
   } = useHorarios();
@@ -71,6 +72,7 @@ export default function HorariosPage() {
     dia_semana: "",
     hora_inicio: "",
     hora_fin: "",
+    taller_id: "",
     gestion_id: null,
   });
   const [currentPage, setCurrentPage] = useState(1);
@@ -301,6 +303,7 @@ export default function HorariosPage() {
                               dia_semana: dia.value,
                               hora_inicio: "",
                               hora_fin: "",
+                              taller_id: "",
                               gestion_id: gestionActiva?.id,
                             });
                           }}
@@ -340,11 +343,9 @@ export default function HorariosPage() {
                               {horario.casa_nombre || "-"}
                             </div>
 
-                            {/* Módulo/Actividad */}
+                            {/* Taller */}
                             <div className="text-gray-700 text-xs">
-                              {horario.modulo_nombre ||
-                                horario.nombre_actividad ||
-                                "-"}
+                              {horario.taller_nombre || "-"}
                             </div>
 
                             {/* Facilitador */}
@@ -356,6 +357,29 @@ export default function HorariosPage() {
                             </div>
                           </div>
                         ))
+                      )}
+
+                      {/* Botón para agregar más horarios en el día */}
+                      {diaHorarios.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setIsEditing(true);
+                            setSelectedHorario(null);
+                            setFormData({
+                              casa_comunal_id: "",
+                              facilitador_id: "",
+                              dia_semana: dia.value,
+                              hora_inicio: "",
+                              hora_fin: "",
+                              taller_id: "",
+                              gestion_id: gestionActiva?.id,
+                            });
+                          }}
+                          className="flex items-center justify-center w-full p-2 mt-1 text-xs font-medium text-blue-600 border-2 border-dashed border-blue-400 rounded-lg hover:bg-blue-50 transition-colors gap-1"
+                        >
+                          <Plus size={14} />
+                          Agregar otro
+                        </button>
                       )}
                     </div>
                   </div>
@@ -509,6 +533,21 @@ export default function HorariosPage() {
             />
 
             <Select
+              label="Taller"
+              value={formData.taller_id}
+              onChange={(e) =>
+                setFormData({ ...formData, taller_id: e.target.value })
+              }
+            >
+              <option value="">Seleccionar taller</option>
+              {talleres.map((taller) => (
+                <option key={taller.id} value={taller.id}>
+                  {taller.nombre || taller.nombre_taller || "Sin nombre"}
+                </option>
+              ))}
+            </Select>
+
+            <Select
               label="Facilitador (Opcional)"
               value={formData.facilitador_id}
               onChange={(e) =>
@@ -523,85 +562,288 @@ export default function HorariosPage() {
               ))}
             </Select>
 
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-2 pt-4 flex-wrap">
               <Button
                 onClick={() => {
                   setIsEditing(false);
                   setSelectedHorario(null);
+                  setFormData({
+                    casa_comunal_id: "",
+                    facilitador_id: "",
+                    dia_semana: "",
+                    hora_inicio: "",
+                    hora_fin: "",
+                    taller_id: "",
+                    gestion_id: null,
+                  });
                 }}
                 variant="secondary"
                 className="flex-1"
               >
                 Cancelar
               </Button>
-              <Button
-                onClick={async () => {
-                  if (!formData.casa_comunal_id) {
-                    alert("Debes seleccionar una casa comunal");
-                    return;
-                  }
-                  if (!formData.dia_semana) {
-                    alert("Debes seleccionar un día");
-                    return;
-                  }
-                  if (!formData.hora_inicio || !formData.hora_fin) {
-                    alert("Debes especificar las horas");
-                    return;
-                  }
-                  if (!gestionActiva?.id) {
-                    alert("Debes seleccionar una gestión activa");
-                    return;
-                  }
 
-                  setIsSaving(true);
-                  try {
-                    // Construir payload MINIMO sin facilitador_id primero
-                    const payload = {
-                      dia_semana: parseInt(formData.dia_semana),
-                      hora_inicio: formData.hora_inicio,
-                      hora_fin: formData.hora_fin,
-                    };
-                    
-                    // Agregar facilitador_id solo si está seleccionado
-                    if (formData.facilitador_id) {
-                      payload.facilitador_id = parseInt(formData.facilitador_id);
-                    }
-                    
-                    console.log("=== CREANDO HORARIO (PAYLOAD MINIMO) ===");
-                    console.log("Casa ID:", parseInt(formData.casa_comunal_id));
-                    console.log("Payload:", JSON.stringify(payload, null, 2));
-                    console.log("Gestión Activa:", gestionActiva?.id);
-                    console.log("==========================================");
-                    
-                    await createHorario(parseInt(formData.casa_comunal_id), payload);
-                    setSuccessMessage("Horario creado exitosamente");
-                    setTimeout(() => {
-                      loadHorarios();
-                      setIsEditing(false);
-                      setSelectedHorario(null);
+              {!selectedHorario || !selectedHorario.id ? (
+                <>
+                  <Button
+                    onClick={() => {
                       setFormData({
-                        casa_comunal_id: "",
+                        casa_comunal_id: formData.casa_comunal_id,
                         facilitador_id: "",
-                        dia_semana: "",
+                        dia_semana: formData.dia_semana,
                         hora_inicio: "",
                         hora_fin: "",
-                        gestion_id: null,
+                        taller_id: "",
+                        gestion_id: gestionActiva?.id,
                       });
-                    }, 1500);
-                  } catch (err) {
-                    alert(
-                      "Error: " +
-                        (err.message || "No se pudo crear el horario"),
-                    );
-                  } finally {
-                    setIsSaving(false);
-                  }
-                }}
-                disabled={isSaving}
-                className="flex-1"
-              >
-                {isSaving ? "Guardando..." : "Guardar Horario"}
-              </Button>
+                    }}
+                    variant="secondary"
+                    className="flex-1 text-sm"
+                  >
+                    + Agregar otro
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!formData.casa_comunal_id) {
+                        alert("Debes seleccionar una casa comunal");
+                        return;
+                      }
+                      if (!formData.dia_semana) {
+                        alert("Debes seleccionar un día");
+                        return;
+                      }
+                      if (!formData.hora_inicio || !formData.hora_fin) {
+                        alert("Debes especificar las horas");
+                        return;
+                      }
+                      if (!gestionActiva?.id) {
+                        alert("Debes seleccionar una gestión activa");
+                        return;
+                      }
+
+                      setIsSaving(true);
+                      try {
+                        // Construir payload con campos opcionales
+                        const payload = {
+                          dia_semana: parseInt(formData.dia_semana),
+                          hora_inicio: formData.hora_inicio,
+                          hora_fin: formData.hora_fin,
+                        };
+
+                        // Agregar facilitador_id solo si está seleccionado
+                        if (formData.facilitador_id) {
+                          payload.facilitador_id = parseInt(
+                            formData.facilitador_id,
+                          );
+                        }
+
+                        // Agregar taller_id solo si está seleccionado
+                        if (formData.taller_id) {
+                          payload.taller_id = parseInt(formData.taller_id);
+                        }
+
+                        console.log("=== GUARDANDO HORARIO (PAYLOAD) ===");
+                        console.log(
+                          "Casa ID:",
+                          parseInt(formData.casa_comunal_id),
+                        );
+                        console.log(
+                          "Payload:",
+                          JSON.stringify(payload, null, 2),
+                        );
+                        console.log("Gestión Activa:", gestionActiva?.id);
+                        console.log(
+                          "==========================================",
+                        );
+
+                        // Determinar si es creación o actualización
+                        if (selectedHorario && selectedHorario.id) {
+                          // Actualizar horario existente
+                          await updateHorario(
+                            selectedHorario.casa_id,
+                            selectedHorario.id,
+                            payload,
+                          );
+                          setSuccessMessage("Horario actualizado exitosamente");
+                        } else {
+                          // Crear nuevo horario
+                          await createHorario(
+                            parseInt(formData.casa_comunal_id),
+                            payload,
+                          );
+                          setSuccessMessage("Horario creado exitosamente");
+                        }
+
+                        // Después de crear, limpiar formulario pero mantener el día para agregar otro
+                        if (!selectedHorario || !selectedHorario.id) {
+                          // Es un nuevo horario - guardar el día_semana para agregar otro
+                          setTimeout(() => {
+                            loadHorarios();
+                            const diaActual = formData.dia_semana;
+                            const casaActual = formData.casa_comunal_id;
+                            setFormData({
+                              casa_comunal_id: casaActual,
+                              facilitador_id: "",
+                              dia_semana: diaActual,
+                              hora_inicio: "",
+                              hora_fin: "",
+                              taller_id: "",
+                              gestion_id: gestionActiva?.id,
+                            });
+                            // Mantener el modal abierto para agregar más
+                            setSelectedHorario(null);
+                          }, 1500);
+                        } else {
+                          // Es una actualización - cerrar modal
+                          setTimeout(() => {
+                            loadHorarios();
+                            setIsEditing(false);
+                            setSelectedHorario(null);
+                            setFormData({
+                              casa_comunal_id: "",
+                              facilitador_id: "",
+                              dia_semana: "",
+                              hora_inicio: "",
+                              hora_fin: "",
+                              taller_id: "",
+                              gestion_id: null,
+                            });
+                          }, 1500);
+                        }
+                      } catch (err) {
+                        alert(
+                          "Error: " +
+                            (err.message || "No se pudo crear el horario"),
+                        );
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    }}
+                    disabled={isSaving}
+                    className="flex-1"
+                  >
+                    {isSaving ? "Guardando..." : "Guardar y Agregar otro"}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={async () => {
+                    if (!formData.casa_comunal_id) {
+                      alert("Debes seleccionar una casa comunal");
+                      return;
+                    }
+                    if (!formData.dia_semana) {
+                      alert("Debes seleccionar un día");
+                      return;
+                    }
+                    if (!formData.hora_inicio || !formData.hora_fin) {
+                      alert("Debes especificar las horas");
+                      return;
+                    }
+                    if (!gestionActiva?.id) {
+                      alert("Debes seleccionar una gestión activa");
+                      return;
+                    }
+
+                    setIsSaving(true);
+                    try {
+                      // Construir payload con campos opcionales
+                      const payload = {
+                        dia_semana: parseInt(formData.dia_semana),
+                        hora_inicio: formData.hora_inicio,
+                        hora_fin: formData.hora_fin,
+                      };
+
+                      // Agregar facilitador_id solo si está seleccionado
+                      if (formData.facilitador_id) {
+                        payload.facilitador_id = parseInt(
+                          formData.facilitador_id,
+                        );
+                      }
+
+                      // Agregar taller_id solo si está seleccionado
+                      if (formData.taller_id) {
+                        payload.taller_id = parseInt(formData.taller_id);
+                      }
+
+                      console.log("=== GUARDANDO HORARIO (PAYLOAD) ===");
+                      console.log(
+                        "Casa ID:",
+                        parseInt(formData.casa_comunal_id),
+                      );
+                      console.log("Payload:", JSON.stringify(payload, null, 2));
+                      console.log("Gestión Activa:", gestionActiva?.id);
+                      console.log("==========================================");
+
+                      // Determinar si es creación o actualización
+                      if (selectedHorario && selectedHorario.id) {
+                        // Actualizar horario existente
+                        await updateHorario(
+                          selectedHorario.casa_id,
+                          selectedHorario.id,
+                          payload,
+                        );
+                        setSuccessMessage("Horario actualizado exitosamente");
+                      } else {
+                        // Crear nuevo horario
+                        await createHorario(
+                          parseInt(formData.casa_comunal_id),
+                          payload,
+                        );
+                        setSuccessMessage("Horario creado exitosamente");
+                      }
+
+                      // Después de crear, limpiar formulario pero mantener el día para agregar otro
+                      if (!selectedHorario || !selectedHorario.id) {
+                        // Es un nuevo horario - guardar el día_semana para agregar otro
+                        setTimeout(() => {
+                          loadHorarios();
+                          const diaActual = formData.dia_semana;
+                          const casaActual = formData.casa_comunal_id;
+                          setFormData({
+                            casa_comunal_id: casaActual,
+                            facilitador_id: "",
+                            dia_semana: diaActual,
+                            hora_inicio: "",
+                            hora_fin: "",
+                            taller_id: "",
+                            gestion_id: gestionActiva?.id,
+                          });
+                          // Mantener el modal abierto para agregar más
+                          setSelectedHorario(null);
+                        }, 1500);
+                      } else {
+                        // Es una actualización - cerrar modal
+                        setTimeout(() => {
+                          loadHorarios();
+                          setIsEditing(false);
+                          setSelectedHorario(null);
+                          setFormData({
+                            casa_comunal_id: "",
+                            facilitador_id: "",
+                            dia_semana: "",
+                            hora_inicio: "",
+                            hora_fin: "",
+                            taller_id: "",
+                            gestion_id: null,
+                          });
+                        }, 1500);
+                      }
+                    } catch (err) {
+                      alert(
+                        "Error: " +
+                          (err.message || "No se pudo crear el horario"),
+                      );
+                    } finally {
+                      setIsSaving(false);
+                    }
+                  }}
+                  disabled={isSaving}
+                  className="flex-1"
+                >
+                  {isSaving ? "Guardando..." : "Guardar Horario"}
+                </Button>
+              )}
             </div>
           </div>
         ) : selectedHorario ? (
@@ -650,12 +892,10 @@ export default function HorariosPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <p className="text-xs text-gray-600 font-semibold uppercase">
-                    Módulo / Actividad
+                    Taller
                   </p>
                   <p className="text-base font-bold text-gray-900">
-                    {selectedHorario.modulo_nombre ||
-                      selectedHorario.nombre_actividad ||
-                      "-"}
+                    {selectedHorario.taller_nombre || "-"}
                   </p>
                 </div>
               </div>
@@ -669,6 +909,7 @@ export default function HorariosPage() {
                   setFormData({
                     casa_comunal_id: selectedHorario.casa_comunal_id || "",
                     facilitador_id: selectedHorario.facilitador_id || "",
+                    taller_id: selectedHorario.taller_id || "",
                     dia_semana: selectedHorario.dia_semana,
                     hora_inicio: selectedHorario.hora_inicio,
                     hora_fin: selectedHorario.hora_fin,
@@ -689,7 +930,10 @@ export default function HorariosPage() {
                   ) {
                     setIsDeleting(true);
                     try {
-                      await deleteHorario(selectedHorario.id);
+                      await deleteHorario(
+                        selectedHorario.casa_id,
+                        selectedHorario.id,
+                      );
                       setSuccessMessage("Horario eliminado exitosamente");
                       setSelectedHorario(null);
                       setTimeout(() => setSuccessMessage(""), 3000);

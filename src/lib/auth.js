@@ -324,7 +324,7 @@ export const getGrillaHorariosRequest = async (
 
 /**
  * Crear horario
- * @param {Object} data
+ * @param {Object} data - { dia_semana, hora_inicio, hora_fin, facilitador_id?, taller_id?, casa_comunal_id, gestion_id? }
  * @returns {Promise<{id: number}>}
  */
 export const createHorarioRequest = async (data) => {
@@ -337,12 +337,28 @@ export const createHorarioRequest = async (data) => {
 };
 
 /**
+ * Actualizar horario
+ * @param {number} casaId
+ * @param {number} horarioId
+ * @param {Object} data
+ * @returns {Promise<Object>}
+ */
+export const updateHorarioRequest = async (casaId, horarioId, data) => {
+  const response = await api.put(
+    `/casas/${casaId}/horarios/${horarioId}`,
+    data,
+  );
+  return response.data;
+};
+
+/**
  * Eliminar horario
+ * @param {number} casaId
  * @param {number} horarioId
  * @returns {Promise<void>}
  */
-export const deleteHorarioRequest = async (horarioId) => {
-  await api.delete(`/horarios/${horarioId}`);
+export const deleteHorarioRequest = async (casaId, horarioId) => {
+  await api.delete(`/casas/${casaId}/horarios/${horarioId}`);
 };
 
 // ============== ASISTENCIA ==============

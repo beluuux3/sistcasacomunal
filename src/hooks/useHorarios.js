@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   getGrillaHorariosRequest,
   createHorarioRequest,
+  updateHorarioRequest,
   deleteHorarioRequest,
 } from "@/lib/auth";
 import { listCasasRequest } from "@/lib/auth";
@@ -92,10 +93,33 @@ export function useHorarios() {
     [gestionActiva?.id],
   );
 
+  // Actualizar horario
+  const updateHorario = useCallback(
+    async (casaId, horarioId, data) => {
+      try {
+        const updatedHorario = await updateHorarioRequest(casaId, horarioId, {
+          ...data,
+          gestion_id: gestionActiva?.id,
+        });
+        setHorarios((prev) =>
+          prev.map((h) => (h.id === horarioId ? updatedHorario : h)),
+        );
+        return updatedHorario;
+      } catch (err) {
+        const errorMsg =
+          err.response?.data?.detail ||
+          err.message ||
+          "Error al actualizar horario";
+        throw { message: errorMsg };
+      }
+    },
+    [gestionActiva?.id],
+  );
+
   // Eliminar horario
-  const deleteHorario = useCallback(async (horarioId) => {
+  const deleteHorario = useCallback(async (casaId, horarioId) => {
     try {
-      await deleteHorarioRequest(horarioId);
+      await deleteHorarioRequest(casaId, horarioId);
       setHorarios((prev) => prev.filter((h) => h.id !== horarioId));
     } catch (err) {
       const errorMsg =
@@ -140,6 +164,7 @@ export function useHorarios() {
     loadHorarios,
     loadCasasYFacilitadores,
     createHorario,
+    updateHorario,
     deleteHorario,
     getDiasDisponibles,
   };
