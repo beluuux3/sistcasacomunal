@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
 import { useIsAdmin } from "@/lib/hooks";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import {
   Home,
   Users,
@@ -24,6 +25,7 @@ import {
   BarChart3,
   Award,
   UserCheck,
+  MapPin,
 } from "lucide-react";
 
 export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
@@ -34,6 +36,7 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
   const isAdmin = useIsAdmin();
   const isFacilitador = usuario?.rol === "Facilitador";
   const tieneMultiplesCasas = casasDelFacilitador.length > 1;
+  const [showCasaModal, setShowCasaModal] = useState(false);
 
   const menuItems = [
     {
@@ -59,6 +62,12 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
       href: "/talleres",
       icon: BookOpen,
       show: isAdmin,
+    },
+    {
+      label: "Control Llegada/Salida",
+      href: "/control-llegada-salida",
+      icon: MapPin,
+      show: isFacilitador && casaSeleccionada,
     },
     {
       label: "Participantes",
@@ -248,7 +257,26 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
                   ? "Administrador"
                   : "Facilitador"}
               </p>
+              {isFacilitador && casaSeleccionada && (
+                <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                  <MapPin size={14} />
+                  {casaSeleccionada.nombre}
+                </p>
+              )}
             </div>
+
+            {/* Cambiar Casa Button (Solo para facilitadores con múltiples casas) */}
+            {tieneMultiplesCasas && (
+              <Button
+                variant="secondary"
+                className="w-full justify-center gap-2"
+                onClick={() => setShowCasaModal(true)}
+              >
+                <MapPin size={18} />
+                Cambiar Casa
+              </Button>
+            )}
+
             <Button
               variant="danger"
               className="w-full justify-center gap-2"
@@ -296,6 +324,35 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
           </Button>
         </div>
       </aside>
+
+      {/* Modal para cambiar casa */}
+      {tieneMultiplesCasas && (
+        <Modal
+          isOpen={showCasaModal}
+          onClose={() => setShowCasaModal(false)}
+          title="Cambiar Casa Comunal"
+        >
+          <div className="space-y-3">
+            {casasDelFacilitador.map((casa) => (
+              <button
+                key={casa.id}
+                onClick={() => {
+                  selectCasa(casa);
+                  setShowCasaModal(false);
+                }}
+                className={`w-full p-3 rounded-lg border-2 transition-colors text-left ${
+                  casaSeleccionada?.id === casa.id
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-200 hover:border-blue-400"
+                }`}
+              >
+                <p className="font-semibold text-gray-900">{casa.nombre}</p>
+                <p className="text-sm text-gray-600">{casa.macrodistrito}</p>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

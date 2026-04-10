@@ -13,7 +13,6 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [casaActual, setCasaActualState] = useState(null);
 
   // Al cargar la app, restaurar sesión desde localStorage
   useEffect(() => {
@@ -22,14 +21,15 @@ export function AuthProvider({ children }) {
         const storedToken = localStorage.getItem("token");
         if (storedToken) {
           setToken(storedToken);
-          // Verificar si el token aún es válido obteniendo el usuario
-          const userData = await getMeRequest();
-          setUsuario(userData);
+          try {
+            const userData = await getMeRequest();
+            setUsuario(userData);
+          } catch (err) {
+            // Si getMeRequest falla, simplemente no cargar el usuario
+            // El usuario puede intentar iniciar sesión de nuevo
+            console.warn("No se pudo restaurar sesión:", err.message);
+          }
         }
-      } catch (err) {
-        console.error("Error al restaurar sesión:", err);
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
       } finally {
         setIsLoading(false);
       }
@@ -73,19 +73,8 @@ export function AuthProvider({ children }) {
     setUsuario(null);
     setToken(null);
     setError(null);
-    setCasaActualState(null);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
-    localStorage.removeItem("casaActual");
-  };
-
-  const setCasaActual = (casa) => {
-    setCasaActualState(casa);
-    if (casa) {
-      localStorage.setItem("casaActual", JSON.stringify(casa));
-    } else {
-      localStorage.removeItem("casaActual");
-    }
   };
 
   return (
@@ -95,8 +84,6 @@ export function AuthProvider({ children }) {
         token,
         isLoading,
         error,
-        casaActual,
-        setCasaActual,
         login,
         logout,
       }}
