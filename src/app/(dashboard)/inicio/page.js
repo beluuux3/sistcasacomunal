@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
-import { Modal } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
-import { getGrillaHorariosRequest } from "@/lib/auth";
 import {
   Building2,
   BookOpen,
@@ -25,56 +23,97 @@ import {
 } from "lucide-react";
 
 export default function Inicio() {
-  const { usuario, casaActual, setCasaActual } = useAuth();
-  const { stats, charts, isLoading, error, loadStats } = useDashboardStats();
-  const [casasDelFacilitador, setCasasDelFacilitador] = useState([]);
-  const [showCasaSelector, setShowCasaSelector] = useState(false);
-  const [loadingCasas, setLoadingCasas] = useState(false);
+  const { usuario } = useAuth();
+  const { casaSeleccionada } = useCasaSeleccionada();
 
-  // Cargar casas del facilitador desde sus horarios
-  useEffect(() => {
-    const loadCasasFromHorarios = async () => {
-      if (usuario?.rol !== "Facilitador") return;
-
-      setLoadingCasas(true);
-      try {
-        const horarios = await getGrillaHorariosRequest(null, null, null);
-        // Extraer casas únicas de los horarios
-        const casasUnicas = [
-          ...new Map(
-            horarios.map((h) => [
-              h.casa_comunal_id,
-              { id: h.casa_comunal_id, nombre: h.casa_nombre },
-            ]),
-          ).values(),
-        ];
-
-        setCasasDelFacilitador(casasUnicas);
-
-        // Si no hay casa seleccionada
-        if (!casaActual && casasUnicas.length > 0) {
-          // Si tiene 1 sola casa, asignar automáticamente
-          if (casasUnicas.length === 1) {
-            setCasaActual(casasUnicas[0]);
-          } else {
-            // Si tiene >1, mostrar modal
-            setShowCasaSelector(true);
-          }
-        }
-      } catch (err) {
-        console.error("Error al obtener casas del facilitador:", err);
-      } finally {
-        setLoadingCasas(false);
-      }
-    };
-
-    loadCasasFromHorarios();
-  }, [usuario, casaActual, setCasaActual]);
+  const casaIdParam =
+    usuario?.rol === "Facilitador" ? casaSeleccionada?.id : null;
+  const { stats, charts, isLoading, error, loadStats } =
+    useDashboardStats(casaIdParam);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
+  // Para facilitadores, solo mostrar participantes
+  if (usuario?.rol === "Facilitador") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+              Bienvenido, {usuario?.nombre_completo}
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              Casa: <strong>{casaSeleccionada?.nombre}</strong>
+            </p>
+          </div>
+
+          <button
+            onClick={loadStats}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+            <span className="hidden sm:inline">Actualizar</span>
+          </button>
+        </div>
+
+        {error && (
+          <Alert
+            type="warning"
+            title="No se pudieron cargar las estadisticas"
+            message={error}
+          />
+        )}
+
+        <div className="grid grid-cols-1 gap-6">
+          <Card className="bg-slate-50">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-slate-50">
+                <Users2 size={28} className="text-slate-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-500">
+                  Participantes en {casaSeleccionada?.nombre}
+                </p>
+                {isLoading ? (
+                  <div className="h-8 w-16 animate-pulse bg-gray-300 rounded mt-1" />
+                ) : (
+                  <p className="text-3xl font-bold text-slate-600">
+                    {stats.total_participantes}
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <Card className="border-2 border-blue-200 bg-blue-50">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">
+              {casaSeleccionada?.nombre}
+            </h3>
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <MapPin size={20} className="text-blue-600 shrink-0 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-600 font-semibold">
+                    Macrodistrito
+                  </p>
+                  <p className="text-sm text-gray-900">
+                    {casaSeleccionada?.macrodistrito || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Para administradores, mostrar todo el dashboard
   const statCards = [
     {
       label: "Casas Comunales",
@@ -120,367 +159,320 @@ export default function Inicio() {
   };
 
   return (
-    <>
-      {/* Modal de selección de Casa para Facilitador */}
-      <Modal
-        isOpen={showCasaSelector}
-        onClose={() => {
-          // No permitir cerrar sin seleccionar
-        }}
-        title="Selecciona tu Casa Comunal"
-        maxWidth="max-w-md"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Selecciona la casa comunal donde trabajarás hoy:
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            Bienvenido, {usuario?.nombre_completo}
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
+            Panel de control — Gestión de Casas Comunales
           </p>
-
-          {loadingCasas ? (
-            <div className="text-center py-4">
-              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            </div>
-          ) : casasDelFacilitador.length === 0 ? (
-            <Alert
-              type="warning"
-              title="Sin casas asignadas"
-              message="No tienes casas asignadas en tu horario"
-            />
-          ) : (
-            <div className="grid grid-cols-1 gap-2">
-              {casasDelFacilitador.map((casa) => (
-                <button
-                  key={casa.id}
-                  onClick={() => {
-                    setCasaActual(casa);
-                    setShowCasaSelector(false);
-                  }}
-                  className="p-3 text-left border border-gray-300 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-colors"
-                >
-                  <p className="font-semibold text-gray-900">{casa.nombre}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </Modal>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-              Bienvenido, {usuario?.nombre_completo}
-            </h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">
-              Panel de control — Gestión de Casas Comunales
-            </p>
-          </div>
-
-          <button
-            onClick={loadStats}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Actualizar estadísticas"
-          >
-            <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">Actualizar</span>
-          </button>
         </div>
 
-        {error && (
-          <Alert
-            type="warning"
-            title="No se pudieron cargar las estadísticas"
-            message={error}
-          />
-        )}
+        <button
+          onClick={loadStats}
+          disabled={isLoading}
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+          title="Actualizar estadísticas"
+        >
+          <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+          <span className="hidden sm:inline">Actualizar</span>
+        </button>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.label} className={stat.bgColor}>
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                    <Icon size={28} className={stat.color} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-500">{stat.label}</p>
-                    {isLoading ? (
-                      <div className="h-8 w-16 animate-pulse bg-gray-300 rounded mt-1" />
-                    ) : (
-                      <p className={`text-3xl font-bold ${stat.color}`}>
-                        {stat.value}
-                      </p>
-                    )}
-                  </div>
+      {error && (
+        <Alert
+          type="warning"
+          title="No se pudieron cargar las estadísticas"
+          message={error}
+        />
+      )}
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+        {statCards.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.label} className={stat.bgColor}>
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+                  <Icon size={28} className={stat.color} />
                 </div>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Participantes por macrodistrito */}
-          <Card>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 size={20} className="text-blue-600" />
-                <h2 className="font-bold text-slate-900">
-                  Participantes por Macrodistrito
-                </h2>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-500">{stat.label}</p>
+                  {isLoading ? (
+                    <div className="h-8 w-16 animate-pulse bg-gray-300 rounded mt-1" />
+                  ) : (
+                    <p className={`text-3xl font-bold ${stat.color}`}>
+                      {stat.value}
+                    </p>
+                  )}
+                </div>
               </div>
+            </Card>
+          );
+        })}
+      </div>
 
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="h-6 bg-gray-200 rounded animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : charts.porMacrodistrito.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4 text-center">
-                  Sin datos disponibles
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {charts.porMacrodistrito.map((item) => {
-                    const pct =
-                      maxMacro > 0
-                        ? Math.round((item.total / maxMacro) * 100)
-                        : 0;
-                    return (
-                      <div key={item.macrodistrito} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-700 font-medium">
-                            {item.macrodistrito}
-                          </span>
-                          <span className="text-gray-500 font-semibold">
-                            {item.total}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Participantes por género */}
-          <Card>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Users2 size={20} className="text-slate-600" />
-                <h2 className="font-bold text-slate-900">
-                  Participantes por Género
-                </h2>
-              </div>
-
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="h-12 bg-gray-200 rounded animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : generoEntries.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4 text-center">
-                  Sin datos disponibles
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {generoEntries.map(([genero, count]) => {
-                    const pct =
-                      totalGenero > 0
-                        ? Math.round((count / totalGenero) * 100)
-                        : 0;
-                    const barColor = generoColors[genero] ?? "bg-slate-500";
-                    return (
-                      <div key={genero} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-700 font-medium capitalize">
-                            {genero}
-                          </span>
-                          <span className="text-gray-500">
-                            {count}{" "}
-                            <span className="text-gray-400">({pct}%)</span>
-                          </span>
-                        </div>
-                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full ${barColor} rounded-full transition-all duration-500`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p className="text-xs text-gray-400 pt-1">
-                    Total: {totalGenero} participantes
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Estado del Sistema */}
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Participantes por macrodistrito */}
         <Card>
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-8 bg-blue-600 rounded" />
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-                Estado del Sistema
+            <div className="flex items-center gap-2">
+              <BarChart3 size={20} className="text-blue-600" />
+              <h2 className="font-bold text-slate-900">
+                Participantes por Macrodistrito
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle size={20} className="text-green-600" />
-                  <h3 className="font-semibold text-green-900">
-                    Sistema Operativo
-                  </h3>
-                </div>
-                <p className="text-sm text-green-700">
-                  Todos los módulos están funcionando correctamente
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="h-6 bg-gray-200 rounded animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : charts.porMacrodistrito.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">
+                Sin datos disponibles
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {charts.porMacrodistrito.map((item) => {
+                  const pct =
+                    maxMacro > 0
+                      ? Math.round((item.total / maxMacro) * 100)
+                      : 0;
+                  return (
+                    <div key={item.macrodistrito} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 font-medium">
+                          {item.macrodistrito}
+                        </span>
+                        <span className="text-gray-500 font-semibold">
+                          {item.total}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Participantes por género */}
+        <Card>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Users2 size={20} className="text-slate-600" />
+              <h2 className="font-bold text-slate-900">
+                Participantes por Género
+              </h2>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="h-12 bg-gray-200 rounded animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : generoEntries.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">
+                Sin datos disponibles
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {generoEntries.map(([genero, count]) => {
+                  const pct =
+                    totalGenero > 0
+                      ? Math.round((count / totalGenero) * 100)
+                      : 0;
+                  const barColor = generoColors[genero] ?? "bg-slate-500";
+                  return (
+                    <div key={genero} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 font-medium capitalize">
+                          {genero}
+                        </span>
+                        <span className="text-gray-500">
+                          {count}{" "}
+                          <span className="text-gray-400">({pct}%)</span>
+                        </span>
+                      </div>
+                      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${barColor} rounded-full transition-all duration-500`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="text-xs text-gray-400 pt-1">
+                  Total: {totalGenero} participantes
                 </p>
               </div>
+            )}
+          </div>
+        </Card>
+      </div>
 
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Activity size={20} className="text-blue-600" />
-                  <h3 className="font-semibold text-blue-900">
-                    Datos en Tiempo Real
-                  </h3>
-                </div>
-                <p className="text-sm text-blue-700">
-                  Usa el botón <strong>Actualizar</strong> para refrescar las
-                  estadísticas
-                </p>
+      {/* Estado del Sistema */}
+      <Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 bg-blue-600 rounded" />
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+              Estado del Sistema
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle size={20} className="text-green-600" />
+                <h3 className="font-semibold text-green-900">
+                  Sistema Operativo
+                </h3>
               </div>
+              <p className="text-sm text-green-700">
+                Todos los módulos están funcionando correctamente
+              </p>
+            </div>
 
-              <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Lock size={20} className="text-amber-600" />
-                  <h3 className="font-semibold text-amber-900">
-                    Acceso Seguro
-                  </h3>
-                </div>
-                <p className="text-sm text-amber-700">
-                  Conectado como{" "}
-                  <strong>
-                    {usuario?.rol === "Administrador"
-                      ? "Administrador"
-                      : "Facilitador"}
-                  </strong>
-                </p>
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity size={20} className="text-blue-600" />
+                <h3 className="font-semibold text-blue-900">
+                  Datos en Tiempo Real
+                </h3>
               </div>
+              <p className="text-sm text-blue-700">
+                Usa el botón <strong>Actualizar</strong> para refrescar las
+                estadísticas
+              </p>
+            </div>
 
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Navigation size={20} className="text-slate-600" />
-                  <h3 className="font-semibold text-slate-900">Navegación</h3>
+            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock size={20} className="text-amber-600" />
+                <h3 className="font-semibold text-amber-900">Acceso Seguro</h3>
+              </div>
+              <p className="text-sm text-amber-700">
+                Conectado como{" "}
+                <strong>
+                  {usuario?.rol === "Administrador"
+                    ? "Administrador"
+                    : "Facilitador"}
+                </strong>
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Navigation size={20} className="text-slate-600" />
+                <h3 className="font-semibold text-slate-900">Navegación</h3>
+              </div>
+              <p className="text-sm text-slate-700">
+                Usa el menú lateral para acceder a los módulos disponibles
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Contactos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-2 border-blue-200 bg-blue-50">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">
+              Casas Comunales del Adulto Mayor
+            </h3>
+            <div className="space-y-3">
+              <div className="flex gap-3">
+                <MapPin size={20} className="text-blue-600 shrink-0 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-600 font-semibold">
+                    Direccion
+                  </p>
+                  <p className="text-sm text-gray-900">
+                    Mercado Camacho lado Guardia Municipal
+                  </p>
                 </div>
-                <p className="text-sm text-slate-700">
-                  Usa el menú lateral para acceder a los módulos disponibles
-                </p>
+              </div>
+              <div className="flex gap-3">
+                <Clock size={20} className="text-blue-600 shrink-0 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-600 font-semibold">Horario</p>
+                  <p className="text-sm text-gray-900">
+                    Desde las 09:00 hasta las 16:00
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Phone size={20} className="text-blue-600 shrink-0 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-600 font-semibold">
+                    Contacto oficial
+                  </p>
+                  <p className="text-sm text-gray-900 font-semibold">
+                    Tel. 75273874
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </Card>
 
-        {/* Contactos */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-2 border-blue-200 bg-blue-50">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Casas Comunales del Adulto Mayor
-              </h3>
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <MapPin size={20} className="text-blue-600 shrink-0 mt-1" />
-                  <div>
-                    <p className="text-sm text-gray-600 font-semibold">
-                      Dirección
-                    </p>
-                    <p className="text-sm text-gray-900">
-                      Mercado Camacho lado Guardia Municipal
-                    </p>
-                  </div>
+        <Card className="border-2 border-amber-200 bg-amber-50">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-900">
+              Equipo Responsable
+            </h3>
+            <div className="space-y-3">
+              <div className="p-3 bg-white rounded-lg border border-amber-200">
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  Responsable Administrativo
+                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <Phone size={16} className="text-amber-600" />
+                  <p className="text-sm text-gray-900">Contacto: 75273874</p>
                 </div>
-                <div className="flex gap-3">
-                  <Clock size={20} className="text-blue-600 shrink-0 mt-1" />
-                  <div>
-                    <p className="text-sm text-gray-600 font-semibold">
-                      Horario
-                    </p>
-                    <p className="text-sm text-gray-900">
-                      Desde las 09:00 hasta las 16:00
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Phone size={20} className="text-blue-600 shrink-0 mt-1" />
-                  <div>
-                    <p className="text-sm text-gray-600 font-semibold">
-                      Información
-                    </p>
-                    <p className="text-sm text-gray-900 font-semibold">
-                      Cel. 75273874
-                    </p>
-                  </div>
+                <p className="text-xs text-gray-600">
+                  Para asuntos administrativos y coordinacion de talleres
+                </p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-amber-200">
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  Soporte Tecnico del Sistema
+                </p>
+                <p className="text-sm text-gray-900 font-semibold">
+                  Belen Mariel Segales Ramos
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Phone size={16} className="text-amber-600" />
+                  <p className="text-sm text-gray-900">67192700</p>
                 </div>
               </div>
             </div>
-          </Card>
-
-          <Card className="border-2 border-amber-200 bg-amber-50">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Soporte Técnico
-              </h3>
-              <div className="space-y-3">
-                <div className="p-3 bg-white rounded-lg border border-amber-200">
-                  <p className="text-sm font-semibold text-gray-900 mb-1">
-                    Belen Mariel Segales Ramos
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Phone size={16} className="text-amber-600" />
-                    <p className="text-sm text-gray-900 font-semibold">
-                      67192700
-                    </p>
-                  </div>
-                </div>
-                <div className="p-3 bg-amber-100 rounded-lg border border-amber-300">
-                  <div className="flex items-start gap-2">
-                    <Lightbulb
-                      size={16}
-                      className="text-amber-600 mt-1 shrink-0"
-                    />
-                    <p className="text-xs text-amber-900">
-                      Para reportar problemas técnicos o no poder acceder a
-                      funciones específicas, contacta a soporte.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
       </div>
-    </>
+    </div>
   );
 }

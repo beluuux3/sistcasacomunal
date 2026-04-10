@@ -22,11 +22,10 @@ export function Select({
       )}
       <select
         className={`${baseStyles} ${errorStyles} ${className}`}
+        style={{ color: "#111827" }}
         {...props}
       >
-        <option className="text-gray-700" value="">
-          {placeholder}
-        </option>
+        <option value="">{placeholder}</option>
         {children}
       </select>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}

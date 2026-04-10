@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Footer } from "@/components/layout/Footer";
 import { ProtectedRoute } from "@/lib/hooks";
+import { FacilitadorCasaProtector } from "@/components/FacilitadorCasaProtector";
 import { GestionProvider } from "@/context/GestionContext";
 import { CasaSeleccionadaProvider } from "@/context/CasaSeleccionadaContext";
 import { Menu, ChevronLeft, ChevronRight } from "lucide-react";
@@ -91,13 +92,15 @@ export default function DashboardLayout({ children }) {
     <ProtectedRoute>
       <GestionProvider>
         <CasaSeleccionadaProvider>
-          <DashboardContent
-            children={children}
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
-            sidebarCollapsed={sidebarCollapsed}
-            setSidebarCollapsed={setSidebarCollapsed}
-          />
+          <FacilitadorCasaProtector>
+            <DashboardContent
+              children={children}
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+              sidebarCollapsed={sidebarCollapsed}
+              setSidebarCollapsed={setSidebarCollapsed}
+            />
+          </FacilitadorCasaProtector>
         </CasaSeleccionadaProvider>
       </GestionProvider>
     </ProtectedRoute>

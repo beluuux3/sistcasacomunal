@@ -17,23 +17,43 @@ export function useParticipantes() {
   const [filtro, setFiltro] = useState("");
 
   // Cargar participantes
-  const loadParticipantes = useCallback(async () => {
-    setIsLoading(true);
-    setError("");
-    try {
-      const data = await listParticipantesRequest(0, 100, filtro || null);
-      setParticipantes(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-          err.message ||
-          "Error al cargar participantes",
-      );
-      setParticipantes([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filtro]);
+  const loadParticipantes = useCallback(
+    async (casaId = null) => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const data = await listParticipantesRequest(
+          0,
+          100,
+          filtro || null,
+          casaId,
+        );
+
+        // Validar que los datos sean de la casa seleccionada (seguridad)
+        if (casaId) {
+          const filtered = data.filter((p) => p.casa_comunal_id === casaId);
+          if (filtered.length !== data.length) {
+            console.warn(
+              "Datos de participantes de otras casas fueron filtrados",
+            );
+          }
+          setParticipantes(Array.isArray(filtered) ? filtered : []);
+        } else {
+          setParticipantes(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        setError(
+          err.response?.data?.detail ||
+            err.message ||
+            "Error al cargar participantes",
+        );
+        setParticipantes([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [filtro],
+  );
 
   // Crear participante
   const createParticipante = useCallback(async (data) => {
@@ -42,10 +62,21 @@ export function useParticipantes() {
       setParticipantes((prev) => [...prev, newParticipante]);
       return newParticipante;
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.detail ||
-        err.message ||
-        "Error al crear participante";
+      let errorMsg = "Error al crear participante";
+
+      // Manejar errores de validación (422)
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Array de errores de validación
+          errorMsg = detail.map((e) => e.msg || JSON.stringify(e)).join("; ");
+        } else if (typeof detail === "string") {
+          errorMsg = detail;
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+
       throw { message: errorMsg };
     }
   }, []);
@@ -59,10 +90,21 @@ export function useParticipantes() {
       );
       return updated;
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.detail ||
-        err.message ||
-        "Error al actualizar participante";
+      let errorMsg = "Error al actualizar participante";
+
+      // Manejar errores de validación (422)
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Array de errores de validación
+          errorMsg = detail.map((e) => e.msg || JSON.stringify(e)).join("; ");
+        } else if (typeof detail === "string") {
+          errorMsg = detail;
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+
       throw { message: errorMsg };
     }
   }, []);
