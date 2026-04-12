@@ -21,9 +21,9 @@ export function useControlFacilitadores() {
   const [error, setError] = useState("");
 
   // Check-in (con geolocalización y foto)
-  const checkIn = useCallback(async (latitud, longitud, foto) => {
+  const checkIn = useCallback(async (latitud, longitud, foto, casaComunalId) => {
     try {
-      const response = await checkInFacilitadorRequest(latitud, longitud, foto);
+      const response = await checkInFacilitadorRequest(latitud, longitud, foto, casaComunalId);
       setControlHoy(response);
       return response;
     } catch (err) {

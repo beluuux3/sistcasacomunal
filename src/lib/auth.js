@@ -511,11 +511,12 @@ export const getReporteActividadRequest = async (actividadId) => {
  * @param {File} foto
  * @returns {Promise<Object>}
  */
-export const checkInFacilitadorRequest = async (latitud, longitud, foto) => {
+export const checkInFacilitadorRequest = async (latitud, longitud, foto, casaComunalId) => {
   const formData = new FormData();
   formData.append("latitud", latitud);
   formData.append("longitud", longitud);
   formData.append("foto", foto);
+  formData.append("casa_comunal_id", casaComunalId);
   const response = await api.post("/facilitadores/check-in", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
