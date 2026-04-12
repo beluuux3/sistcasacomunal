@@ -18,7 +18,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, usuario } = useAuth();
 
-  // Redirigir a inicio si ya está logeado
+  // Redirigir después del login exitoso
   useEffect(() => {
     if (usuario) {
       router.push("/inicio");

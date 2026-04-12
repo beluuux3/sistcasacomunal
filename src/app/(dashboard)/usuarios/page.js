@@ -46,13 +46,13 @@ export default function UsuariosPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [formData, setFormData] = useState({
-    nombre_completo: "",
+    nombres: "",
+    apellidos: "",
     email: "",
     password: "",
     rol: "Facilitador",
     ci: "",
     telefono: "",
-    casa_comunal_id: "",
   });
 
   useEffect(() => {
@@ -67,31 +67,38 @@ export default function UsuariosPage() {
     }
   }, [successMessage]);
 
-  const generateEmail = (nombre_completo, ci) => {
-    if (!nombre_completo || !ci) return "";
-    const nombres = nombre_completo.trim().split(" ");
-    const primerNombre = nombres[0]?.charAt(0).toLowerCase() || "";
-    const apellidos = nombres.slice(1);
-    const primerApellido = apellidos[0]?.charAt(0).toLowerCase() || "";
+  const generateEmail = (nombres, apellidos, ci) => {
+    if (!nombres || !apellidos || !ci) return "";
+    const primerNombre = nombres.trim().charAt(0).toLowerCase();
+    const primerApellido = apellidos.trim().charAt(0).toLowerCase();
     return `${primerNombre}${primerApellido}${ci}@casacomunal.bo`;
   };
 
-  const handleNombreChange = (e) => {
-    const nombre = e.target.value;
+  const handleNombresChange = (e) => {
+    const nombres = e.target.value.toUpperCase();
     setFormData((prev) => ({
       ...prev,
-      nombre_completo: nombre,
-      email: generateEmail(nombre, prev.ci),
+      nombres,
+      email: generateEmail(nombres, prev.apellidos, prev.ci),
+    }));
+  };
+
+  const handleApellidosChange = (e) => {
+    const apellidos = e.target.value.toUpperCase();
+    setFormData((prev) => ({
+      ...prev,
+      apellidos,
+      email: generateEmail(prev.nombres, apellidos, prev.ci),
     }));
   };
 
   const handleCIChange = (e) => {
-    const ci = e.target.value;
+    const ci = e.target.value.toUpperCase();
     setFormData((prev) => ({
       ...prev,
       ci,
       password: !isEditing ? ci : prev.password,
-      email: generateEmail(prev.nombre_completo, ci),
+      email: generateEmail(prev.nombres, prev.apellidos, ci),
     }));
   };
 
@@ -99,8 +106,12 @@ export default function UsuariosPage() {
     e.preventDefault();
     setFormError("");
 
-    if (!formData.nombre_completo.trim()) {
-      setFormError("El nombre completo es requerido");
+    if (!formData.nombres.trim()) {
+      setFormError("Los nombres son requeridos");
+      return;
+    }
+    if (!formData.apellidos.trim()) {
+      setFormError("Los apellidos son requeridos");
       return;
     }
     if (!formData.email.trim()) {
@@ -121,12 +132,16 @@ export default function UsuariosPage() {
     }
 
     try {
-      const submitData = { ...formData };
+      // Combinar nombres y apellidos para nombre_completo
+      const submitData = {
+        ...formData,
+        nombre_completo: `${formData.nombres} ${formData.apellidos}`.trim(),
+      };
+      delete submitData.nombres;
+      delete submitData.apellidos;
+
       if (isEditing && !submitData.password) {
         delete submitData.password;
-      }
-      if (!submitData.casa_comunal_id) {
-        delete submitData.casa_comunal_id;
       }
 
       if (isEditing) {
@@ -145,13 +160,13 @@ export default function UsuariosPage() {
 
   const resetForm = () => {
     setFormData({
-      nombre_completo: "",
+      nombres: "",
+      apellidos: "",
       email: "",
       password: "",
       rol: "Facilitador",
       ci: "",
       telefono: "",
-      casa_comunal_id: "",
     });
     setIsEditing(false);
     setEditingUserId(null);
@@ -159,14 +174,16 @@ export default function UsuariosPage() {
   };
 
   const handleEdit = (user) => {
+    const [nombres, ...apellidosParts] = user.nombre_completo.split(" ");
+    const apellidos = apellidosParts.join(" ");
     setFormData({
-      nombre_completo: user.nombre_completo,
+      nombres: nombres || "",
+      apellidos: apellidos || "",
       email: user.email,
       password: "",
       rol: user.rol,
       ci: user.ci,
       telefono: user.telefono || "",
-      casa_comunal_id: user.casa_comunal_id || "",
     });
     setEditingUserId(user.id);
     setIsEditing(true);
@@ -270,7 +287,7 @@ export default function UsuariosPage() {
               </TableHead>
               <TableBody>
                 {usuarios.length === 0 ? (
-                  <TableEmpty message="No hay usuarioregistrados" />
+                  <TableEmpty message="No hay usuarios registrados" />
                 ) : (
                   usuariosPage.map((user, idx) => (
                     <TableRow key={user.id}>
@@ -351,13 +368,24 @@ export default function UsuariosPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Nombre Completo"
+              label="Nombres"
               required
-              value={formData.nombre_completo}
-              onChange={handleNombreChange}
-              placeholder="Ej: Juan Pérez García"
-              className="placeholder:text-gray-500"
+              value={formData.nombres}
+              onChange={handleNombresChange}
+              placeholder="EJ: JUAN"
+              className="placeholder:text-gray-500 uppercase"
             />
+            <Input
+              label="Apellidos"
+              required
+              value={formData.apellidos}
+              onChange={handleApellidosChange}
+              placeholder="EJ: PÉREZ GARCÍA"
+              className="placeholder:text-gray-500 uppercase"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <Input
               label="Email"
               type="email"
@@ -370,29 +398,29 @@ export default function UsuariosPage() {
               disabled
               className="placeholder:text-gray-500 bg-gray-50"
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <Input
               label="CI (Cédula de Identidad)"
               required
               value={formData.ci}
               onChange={handleCIChange}
-              placeholder="Ej: 12345678"
-              className="placeholder:text-gray-500"
-            />
-            <Input
-              label="Teléfono"
-              value={formData.telefono}
-              onChange={(e) =>
-                setFormData({ ...formData, telefono: e.target.value })
-              }
-              placeholder="Ej: +591 75123456"
-              className="placeholder:text-gray-500"
+              placeholder="EJ: 12345678"
+              className="placeholder:text-gray-500 uppercase"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Teléfono"
+              value={formData.telefono}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  telefono: e.target.value.toUpperCase(),
+                })
+              }
+              placeholder="EJ: +591 75123456"
+              className="placeholder:text-gray-500 uppercase"
+            />
             <Select
               label="Rol"
               required
@@ -404,22 +432,6 @@ export default function UsuariosPage() {
               <option value="Facilitador">Facilitador</option>
               <option value="Administrador">Administrador</option>
             </Select>
-            {formData.rol === "Facilitador" && (
-              <Select
-                label="Casa Comunal"
-                value={formData.casa_comunal_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, casa_comunal_id: e.target.value })
-                }
-              >
-                <option value="">Seleccionar Casa Comunal</option>
-                {casas.map((casa) => (
-                  <option key={casa.id} value={casa.id}>
-                    {casa.nombre}
-                  </option>
-                ))}
-              </Select>
-            )}
           </div>
 
           {!isEditing && (

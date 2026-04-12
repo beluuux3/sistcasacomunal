@@ -3,88 +3,142 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Textarea } from "@/components/ui/Textarea";
 import { Alert } from "@/components/ui/Alert";
-import { Modal } from "@/components/ui/Modal";
-import { Pagination } from "@/components/ui/Pagination";
-import {
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableHeader,
-  TableCell,
-  TableEmpty,
-} from "@/components/ui/Table";
-import { useEvaluaciones } from "@/hooks/useEvaluaciones";
-import { useTalleres } from "@/hooks/useTalleres";
+import { useAuth } from "@/context/AuthContext";
+import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
+import { getGrillaHorariosRequest } from "@/lib/auth";
+import api from "@/lib/api";
+import { cargarEvaluacionRequest } from "@/lib/auth";
 
 export default function EvaluacionesPage() {
-  const {
-    evaluaciones,
-    isLoading,
-    error,
-    viewMode,
-    loadEvaluacionesTaller,
-    cargarEvaluacion,
-  } = useEvaluaciones();
+  const { usuario } = useAuth();
+  const { casaSeleccionada } = useCasaSeleccionada();
 
-  const { talleres, loadTalleres } = useTalleres();
-
-  const [selectedTallerForEvaluacion, setSelectedTallerForEvaluacion] =
-    useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
-  const [editingEvaluacion, setEditingEvaluacion] = useState(null);
-  const [formData, setFormData] = useState({
-    nota_1: "",
-    nota_2: "",
-    observaciones: "",
-  });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Estados para participantes
+  const [participantes, setParticipantes] = useState([]);
+  const [horariosData, setHorariosData] = useState([]);
+  
+  // Estados para admin
+  const [casas, setCasas] = useState([]);
+  const [adminSelectedCasa, setAdminSelectedCasa] = useState("");
+  const [infoTallerAdmin, setInfoTallerAdmin] = useState(null);
+  
+  // Estados para notas
+  const [notas, setNotas] = useState({}); // { participante_id: { nota_1, nota_2 } }
 
+  // Cargar casas para admin
   useEffect(() => {
-    loadTalleres();
-  }, []);
-
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(""), 3000);
-      return () => clearTimeout(timer);
+    if (usuario?.rol === "Administrador") {
+      const loadCasas = async () => {
+        try {
+          const response = await api.get("/casas");
+          const casasData = Array.isArray(response.data) ? response.data : [];
+          setCasas(casasData);
+          // Cargar horarios
+          const horariosResp = await getGrillaHorariosRequest();
+          setHorariosData(horariosResp);
+        } catch (err) {
+          setFormError("Error cargando casas");
+        }
+      };
+      loadCasas();
     }
-  }, [successMessage]);
+  }, [usuario?.rol]);
 
-  const handleSelectTaller = async (tallerId) => {
-    if (!tallerId) {
-      setSelectedTallerForEvaluacion("");
+  // Auto-seleccionar primera casa para admin
+  useEffect(() => {
+    if (
+      usuario?.rol === "Administrador" &&
+      casas.length > 0 &&
+      !adminSelectedCasa
+    ) {
+      handleAdminSelectCasa(casas[0].id.toString());
+    }
+  }, [usuario?.rol, casas, adminSelectedCasa]);
+
+  // Cargar participantes cuando cambia la casa (facilitador)
+  useEffect(() => {
+    if (usuario?.rol === "Facilitador" && casaSeleccionada?.id) {
+      loadParticipantesDeCasa(casaSeleccionada.id);
+    }
+  }, [usuario?.rol, casaSeleccionada?.id]);
+
+  const loadParticipantesDeCasa = async (casaId) => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/participantes");
+      const allParticipantes = Array.isArray(response.data) ? response.data : [];
+      const participantesDeCasa = allParticipantes.filter(
+        (p) => p.casa_comunal_id === casaId,
+      );
+      setParticipantes(participantesDeCasa);
+      
+      // Inicializar notas vacías para cada participante
+      const notasInit = {};
+      participantesDeCasa.forEach((p) => {
+        notasInit[p.id] = { nota_1: "", nota_2: "" };
+      });
+      setNotas(notasInit);
+    } catch (err) {
+      setFormError("Error cargando participantes");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAdminSelectCasa = async (casaId) => {
+    if (!casaId) {
+      setAdminSelectedCasa("");
+      setInfoTallerAdmin(null);
+      setParticipantes([]);
+      setNotas({});
       return;
     }
-    setSelectedTallerForEvaluacion(tallerId);
-    setFormError("");
-    await loadEvaluacionesTaller(parseInt(tallerId));
+
+    setAdminSelectedCasa(casaId);
+
+    try {
+      // Obtener información del taller de esta casa
+      const casaInt = parseInt(casaId);
+      const horariosDelaCasa = horariosData.filter(
+        (h) => h.casa_id === casaInt,
+      );
+
+      if (horariosDelaCasa.length > 0) {
+        const horario = horariosDelaCasa[0];
+        setInfoTallerAdmin({
+          tallerNombre: horario.taller_nombre,
+          facilitadorNombre: horario.facilitador_nombre || "No asignado",
+          tallerId: horario.taller_id,
+        });
+      }
+
+      // Cargar participantes
+      await loadParticipantesDeCasa(casaInt);
+    } catch (err) {
+      setFormError("Error seleccionando casa");
+    }
   };
 
-  const handleEditEvaluacion = (evaluacion) => {
-    setEditingEvaluacion(evaluacion);
-    setFormData({
-      nota_1: evaluacion.nota_1 || "",
-      nota_2: evaluacion.nota_2 || "",
-      observaciones: evaluacion.observaciones || "",
-    });
-    setIsModalOpen(true);
+  const handleUpdateNota = (participanteId, field, value) => {
+    setNotas((prev) => ({
+      ...prev,
+      [participanteId]: {
+        ...prev[participanteId],
+        [field]: value,
+      },
+    }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormError("");
-
-    // Validación
-    const nota1 = parseFloat(formData.nota_1);
-    const nota2 = parseFloat(formData.nota_2);
+  const handleGuardarNotas = async (participanteId) => {
+    const participanteNotas = notas[participanteId] || {};
+    const nota1 = parseFloat(participanteNotas.nota_1 || 0);
+    const nota2 = parseFloat(participanteNotas.nota_2 || 0);
 
     if (isNaN(nota1) || nota1 < 0 || nota1 > 100) {
       setFormError("Nota 1 debe ser un número entre 0 y 100");
@@ -97,19 +151,41 @@ export default function EvaluacionesPage() {
     }
 
     try {
-      await cargarEvaluacion(
-        editingEvaluacion.participante_id,
-        editingEvaluacion.taller_id,
-        nota1,
-        nota2,
-        formData.observaciones,
-      );
-      setSuccessMessage("Evaluación actualizada correctamente");
-      setIsModalOpen(false);
-      setFormData({ nota_1: "", nota_2: "", observaciones: "" });
-      setEditingEvaluacion(null);
+      // Determinar taller_id
+      let tallerId;
+      if (usuario?.rol === "Administrador" && infoTallerAdmin) {
+        tallerId = infoTallerAdmin.tallerId;
+      } else if (usuario?.rol === "Facilitador") {
+        // Obtener primer taller del horario de la casa
+        const casaHorarios = horariosData.filter(
+          (h) => h.casa_id === casaSeleccionada?.id,
+        );
+        tallerId = casaHorarios[0]?.taller_id;
+      }
+
+      if (!tallerId) {
+        setFormError("No se pudo determinar el taller");
+        return;
+      }
+
+      await cargarEvaluacionRequest({
+        participante_id: participanteId,
+        taller_id: tallerId,
+        nota_1: nota1,
+        nota_2: nota2,
+        observaciones: "",
+      });
+
+      setSuccessMessage("Notas guardadas correctamente");
+      setFormError("");
+      
+      // Limpiar notas guardadas
+      setNotas((prev) => ({
+        ...prev,
+        [participanteId]: { nota_1: "", nota_2: "" },
+      }));
     } catch (err) {
-      setFormError(err.message);
+      setFormError(err.message || "Error guardando notas");
     }
   };
 
@@ -121,200 +197,161 @@ export default function EvaluacionesPage() {
           Evaluaciones
         </h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">
-          Gestión de evaluaciones de participantes
+          Gestión de evaluaciones de participantes por casa comunal
         </p>
       </div>
 
       {/* Messages */}
-      {error && <Alert type="error" title="Error" message={error} />}
       {successMessage && (
         <Alert type="success" title="Éxito" message={successMessage} />
       )}
       {formError && <Alert type="error" title="Error" message={formError} />}
 
-      {/* Selector de Taller */}
-      <Card>
-        <Select
-          label="Seleccionar Taller"
-          value={selectedTallerForEvaluacion}
-          onChange={(e) => handleSelectTaller(e.target.value)}
-        >
-          <option value="">Seleccionar taller</option>
-          {talleres.map((taller) => (
-            <option key={taller.id} value={taller.id}>
-              {taller.nombre}
-            </option>
-          ))}
-        </Select>
-      </Card>
+      {/* Selector de Casa para Admin */}
+      {usuario?.rol === "Administrador" && (
+        <Card>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Seleccionar Casa Comunal
+            </label>
+            <select
+              value={adminSelectedCasa}
+              onChange={(e) => handleAdminSelectCasa(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              style={{ color: "#111827" }}
+            >
+              <option value="">Seleccionar casa</option>
+              {casas.map((casa) => (
+                <option key={casa.id} value={casa.id}>
+                  {casa.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Card>
+      )}
 
-      {/* Tabla de Evaluaciones */}
-      {selectedTallerForEvaluacion && (
+      {/* Card de información del taller (solo admin) */}
+      {usuario?.rol === "Administrador" &&
+        adminSelectedCasa &&
+        infoTallerAdmin && (
+          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200">
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm text-gray-600">Taller:</p>
+                <p className="font-bold text-lg text-slate-900">
+                  {infoTallerAdmin.tallerNombre}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Facilitador:</p>
+                <p className="font-semibold text-slate-900">
+                  {infoTallerAdmin.facilitadorNombre}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+      {/* Tabla de Participantes con Notas */}
+      {(usuario?.rol === "Facilitador" ||
+        (usuario?.rol === "Administrador" && adminSelectedCasa)) && (
         <Card>
           {isLoading ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
+          ) : participantes.length === 0 ? (
+            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
+              <p className="text-sm text-yellow-800">
+                No hay participantes en esta casa.
+              </p>
+            </div>
           ) : (
-            <div>
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <div className="inline-block min-w-full px-4 sm:px-0">
-                  <table className="w-full text-xs sm:text-sm">
-                    <thead className="bg-gray-100 border-b border-gray-200">
-                      <tr>
-                        <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-left">
-                          Participante
-                        </th>
-                        <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-left">
-                          Nota 1
-                        </th>
-                        <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-left">
-                          Nota 2
-                        </th>
-                        <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-left hidden sm:table-cell">
-                          Final
-                        </th>
-                        <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-center">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {(() => {
-                        const totalPages = Math.ceil(
-                          evaluaciones.length / itemsPerPage,
-                        );
-                        const startIndex = (currentPage - 1) * itemsPerPage;
-                        const paginatedData = evaluaciones.slice(
-                          startIndex,
-                          startIndex + itemsPerPage,
-                        );
-                        return paginatedData.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan="5"
-                              className="px-4 py-8 text-center text-gray-500"
-                            >
-                              No hay evaluaciones registradas
-                            </td>
-                          </tr>
-                        ) : (
-                          paginatedData.map((evaluacion) => (
-                            <tr
-                              key={`${evaluacion.participante_id}-${evaluacion.taller_id}`}
-                              className="hover:bg-gray-50 transition-colors"
-                            >
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-900">
-                                {evaluacion.participante_nombre ||
-                                  evaluacion.participante_id}
-                              </td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-900">
-                                {evaluacion.nota_1 || "-"}
-                              </td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-900">
-                                {evaluacion.nota_2 || "-"}
-                              </td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-900 hidden sm:table-cell">
-                                {evaluacion.nota_final || "-"}
-                              </td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                                <Button
-                                  variant="ghost"
-                                  onClick={() =>
-                                    handleEditEvaluacion(evaluacion)
-                                  }
-                                  className="p-1 w-full sm:w-auto"
-                                >
-                                  Editar
-                                </Button>
-                              </td>
-                            </tr>
-                          ))
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              {evaluaciones.length > 0 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={Math.ceil(evaluaciones.length / itemsPerPage)}
-                  onPageChange={setCurrentPage}
-                  itemsPerPage={itemsPerPage}
-                  totalItems={evaluaciones.length}
-                />
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 min-w-[180px]">
+                      Nombre
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Nota 1
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Nota 2
+                    </th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {participantes.map((participante) => (
+                    <tr key={participante.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-900">
+                        <div>
+                          <p className="font-medium text-sm">
+                            {participante.nombres} {participante.apellidos}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            CI: {participante.ci}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={notas[participante.id]?.nota_1 || ""}
+                          onChange={(e) =>
+                            handleUpdateNota(
+                              participante.id,
+                              "nota_1",
+                              e.target.value,
+                            )
+                          }
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="-"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={notas[participante.id]?.nota_2 || ""}
+                          onChange={(e) =>
+                            handleUpdateNota(
+                              participante.id,
+                              "nota_2",
+                              e.target.value,
+                            )
+                          }
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="-"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Button
+                          variant="primary"
+                          onClick={() => handleGuardarNotas(participante.id)}
+                          className="p-1 text-xs"
+                        >
+                          Guardar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </Card>
       )}
-
-      {/* Modal Editar Evaluación */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setFormData({ nota_1: "", nota_2: "", observaciones: "" });
-          setEditingEvaluacion(null);
-        }}
-        title="Editar Evaluación"
-        footerActions={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setIsModalOpen(false);
-                setFormData({ nota_1: "", nota_2: "", observaciones: "" });
-                setEditingEvaluacion(null);
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button variant="primary" onClick={handleSubmit}>
-              Guardar
-            </Button>
-          </>
-        }
-      >
-        {formError && <Alert type="error" title="Error" message={formError} />}
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Nota 1 (0-100)"
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={formData.nota_1}
-              onChange={(e) =>
-                setFormData({ ...formData, nota_1: e.target.value })
-              }
-            />
-            <Input
-              label="Nota 2 (0-100)"
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={formData.nota_2}
-              onChange={(e) =>
-                setFormData({ ...formData, nota_2: e.target.value })
-              }
-            />
-          </div>
-
-          <Textarea
-            label="Observaciones"
-            value={formData.observaciones}
-            onChange={(e) =>
-              setFormData({ ...formData, observaciones: e.target.value })
-            }
-            placeholder="Comentarios o observaciones..."
-          />
-        </div>
-      </Modal>
     </div>
   );
 }

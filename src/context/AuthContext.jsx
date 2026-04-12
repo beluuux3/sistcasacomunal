@@ -21,14 +21,15 @@ export function AuthProvider({ children }) {
         const storedToken = localStorage.getItem("token");
         if (storedToken) {
           setToken(storedToken);
-          // Verificar si el token aún es válido obteniendo el usuario
-          const userData = await getMeRequest();
-          setUsuario(userData);
+          try {
+            const userData = await getMeRequest();
+            setUsuario(userData);
+          } catch (err) {
+            // Si getMeRequest falla, simplemente no cargar el usuario
+            // El usuario puede intentar iniciar sesión de nuevo
+            console.warn("No se pudo restaurar sesión:", err.message);
+          }
         }
-      } catch (err) {
-        console.error("Error al restaurar sesión:", err);
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
       } finally {
         setIsLoading(false);
       }
@@ -58,7 +59,9 @@ export function AuthProvider({ children }) {
     } catch (err) {
       const errorMessage = !err.response
         ? "No se pudo conectar al servidor. Si es la primera vez que lo usa hoy, espere unos segundos e intente de nuevo."
-        : (err.response?.data?.detail ?? err.message ?? "Error al iniciar sesión");
+        : (err.response?.data?.detail ??
+          err.message ??
+          "Error al iniciar sesión");
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
