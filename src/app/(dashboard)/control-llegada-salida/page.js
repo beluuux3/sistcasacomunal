@@ -215,7 +215,6 @@ export default function ControlLlegadaSalidaPage() {
       setSuccessMessage("Salida registrada correctamente");
       setFotoSalida(null);
       setFotoSalidaPreview(null);
-      setHoraSalida("");
       loadControles();
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (err) {

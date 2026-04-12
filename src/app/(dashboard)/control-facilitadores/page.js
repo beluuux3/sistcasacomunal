@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { useControlFacilitadores } from "@/hooks/useControlFacilitadores";
 import { useAuth } from "@/context/AuthContext";
+import { listUsersRequest } from "@/lib/auth";
 import {
   Calendar,
   Clock,
@@ -34,6 +35,7 @@ export default function ControlFacilitadoresPage() {
 
   const { usuario } = useAuth();
   const [facilitadores, setFacilitadores] = useState([]);
+  const [loadingFacilitadores, setLoadingFacilitadores] = useState(true);
   const [selectedFacilitador, setSelectedFacilitador] = useState("");
   const [selectedFecha, setSelectedFecha] = useState("");
   const [filterEstado, setFilterEstado] = useState("todos");
@@ -51,14 +53,13 @@ export default function ControlFacilitadoresPage() {
 
   // Cargar data inicial
   useEffect(() => {
-    loadControles(); // Cargar todos los controles
-    // Cargar lista de facilitadores (simulada)
-    setFacilitadores([
-      { id: 1, nombre: "Juan Pérez" },
-      { id: 2, nombre: "María García" },
-      { id: 3, nombre: "Carlos López" },
-      { id: 4, nombre: "Ana Martínez" },
-    ]);
+    loadControles();
+    listUsersRequest()
+      .then((users) => {
+        setFacilitadores(users.filter((u) => u.rol === "Facilitador"));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingFacilitadores(false));
   }, []);
 
   // Filtrar controles
@@ -110,12 +111,19 @@ export default function ControlFacilitadoresPage() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-ES", {
+    // Parsear como fecha local para evitar el desfase UTC
+    const [year, month, day] = dateStr.split("-");
+    return new Date(year, month - 1, day).toLocaleDateString("es-ES", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
+  };
+
+  const getNombreFacilitador = (facilitador_id) => {
+    if (loadingFacilitadores) return "...";
+    const fac = facilitadores.find((f) => f.id === facilitador_id);
+    return fac?.nombre_completo || fac?.nombre || "Desconocido";
   };
 
   // Solo admin puede ver este panel
@@ -262,9 +270,7 @@ export default function ControlFacilitadoresPage() {
                         className="hover:bg-gray-50 transition-colors"
                       >
                         <td className="px-4 py-3 font-medium text-gray-900">
-                          {facilitadores.find(
-                            (f) => f.id === control.facilitador_id,
-                          )?.nombre || "Desconocido"}
+                          {getNombreFacilitador(control.facilitador_id)}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
                           {formatDate(control.fecha)}
@@ -290,11 +296,16 @@ export default function ControlFacilitadoresPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-600">
-                          {control.latitud && control.longitud ? (
-                            <div className="flex items-center gap-1 text-blue-600 cursor-pointer hover:text-blue-700">
+                          {control.latitud_entrada && control.longitud_entrada ? (
+                            <a
+                              href={`https://maps.google.com/?q=${control.latitud_entrada},${control.longitud_entrada}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                            >
                               <MapPin size={14} />
                               <span className="text-xs">Ver mapa</span>
-                            </div>
+                            </a>
                           ) : (
                             "-"
                           )}
@@ -364,13 +375,9 @@ export default function ControlFacilitadoresPage() {
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
                 <strong>
-                  {
-                    facilitadores.find(
-                      (f) => f.id === selectedControl.facilitador_id,
-                    )?.nombre
-                  }
+                  {getNombreFacilitador(selectedControl.facilitador_id)}
                 </strong>{" "}
-                -{formatDate(selectedControl.fecha)}
+                - {formatDate(selectedControl.fecha)}
               </p>
             </div>
 
@@ -454,7 +461,7 @@ export default function ControlFacilitadoresPage() {
         <Modal
           isOpen={showFotosModal}
           onClose={() => setShowFotosModal(false)}
-          title={`Fotos - ${facilitadores.find((f) => f.id === selectedControl.facilitador_id)?.nombre}`}
+          title={`Fotos - ${getNombreFacilitador(selectedControl.facilitador_id)}`}
         >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
