@@ -198,15 +198,6 @@ export default function ControlLlegadaSalidaPage() {
                 <CheckCircle size={18} className="text-green-700" />
                 Ubicación detectada
               </p>
-              <p className="text-gray-600">
-                Latitud: <strong>{ubicacion.lat.toFixed(6)}</strong>
-              </p>
-              <p className="text-gray-600">
-                Longitud: <strong>{ubicacion.lng.toFixed(6)}</strong>
-              </p>
-              <p className="text-gray-600 text-xs">
-                Precisión: ±{ubicacion.accuracy.toFixed(0)} metros
-              </p>
             </div>
           ) : gpsError ? (
             <p className="text-red-600 text-sm">{gpsError}</p>

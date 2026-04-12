@@ -299,7 +299,7 @@ export default function MiControlPage() {
               {ubicacion && (
                 <p className="text-sm text-green-700 flex items-center gap-2 ml-8">
                   <MapPin size={14} />
-                  Ubicación registrada ({ubicacion?.precision?.toFixed(0)}m)
+                  Ubicación registrada
                 </p>
               )}
             </div>
@@ -451,17 +451,6 @@ export default function MiControlPage() {
                 <Camera size={18} />
                 Capturar foto
               </button>
-            </div>
-          )}
-
-          {cameraMode === "entrada" && !fotoCapturada && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800">
-                <strong>Ubicación:</strong>{" "}
-                {ubicacion
-                  ? `${ubicacion.latitud.toFixed(4)}, ${ubicacion.longitud.toFixed(4)}`
-                  : "Obteniendo..."}
-              </p>
             </div>
           )}
         </div>
