@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
@@ -162,15 +163,30 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
           className={`h-16 flex items-center justify-center border-b border-gray-200 hidden lg:flex ${isCollapsed ? "px-4" : "px-6"}`}
         >
           {!isCollapsed && (
-            <div>
-              <h2 className="font-bold text-slate-900">Casa Comunal</h2>
-              <p className="text-xs text-gray-500">Gestión</p>
+            <div className="flex items-center gap-3">
+              <Image
+                src="/LOGOCASACOMUNAL.jpeg"
+                alt="Logo Casas Comunales"
+                width={40}
+                height={40}
+                className="rounded-full"
+              />
+              <div>
+                <h2 className="font-bold text-slate-900 text-sm">
+                  CASAS COMUNALES
+                </h2>
+                <p className="text-xs text-gray-500">Unidad del Adulto MAyor</p>
+              </div>
             </div>
           )}
           {isCollapsed && (
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
-              CC
-            </div>
+            <Image
+              src="/LOGOCASACOMUNAL.jpeg"
+              alt="Logo Casas Comunales"
+              width={32}
+              height={32}
+              className="rounded-full"
+            />
           )}
         </div>
 
@@ -180,7 +196,7 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
         >
           {/* Selector de Casa para Facilitadores */}
           {isFacilitador && tieneMultiplesCasas && (
-            <div className={`${isCollapsed ? "" : "mb-6"}`}>
+            <div className={`lg:hidden ${isCollapsed ? "" : "mb-6"}`}>
               <label
                 className={`text-xs font-semibold text-gray-600 uppercase ${isCollapsed ? "hidden" : "block"}`}
               >

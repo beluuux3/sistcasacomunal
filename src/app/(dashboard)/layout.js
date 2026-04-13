@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/lib/hooks";
 import { FacilitadorCasaProtector } from "@/components/FacilitadorCasaProtector";
 import { GestionProvider } from "@/context/GestionContext";
 import { CasaSeleccionadaProvider } from "@/context/CasaSeleccionadaContext";
+import { DynamicPageTitle } from "@/components/DynamicPageTitle";
 import { Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import GestionSelector from "@/components/GestionSelector";
 
@@ -19,6 +20,7 @@ function DashboardContent({
 }) {
   return (
     <div className="flex h-screen bg-gray-50">
+      <DynamicPageTitle />
       {/* Sidebar - hidden on mobile unless open, collapsible on desktop */}
       <div
         className={`${

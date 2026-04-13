@@ -458,9 +458,11 @@ export default function AsistenciaPage() {
                 <Input
                   label="Fecha"
                   type="date"
+                  className=" border-gray-300 text-black"
                   value={fecha}
                   max={getFechaHoy()}
                   onChange={(e) => setFecha(e.target.value)}
+                  labelClassName="text-gray-700"
                 />
 
                 {asistenciaYaRegistrada && (
@@ -567,27 +569,6 @@ export default function AsistenciaPage() {
             ) : (
               /* Facilitador con múltiples talleres */
               <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Seleccionar Taller"
-                    value={selectedTallerForAsistencia}
-                    onChange={(e) => handleSelectTaller(e.target.value)}
-                  >
-                    <option value="">Seleccionar taller</option>
-                    {talleresDelFacilitador.map((taller) => (
-                      <option key={taller.id} value={taller.id}>
-                        {taller.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                  <Input
-                    label="Fecha"
-                    type="date"
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                  />
-                </div>
-
                 {selectedTallerForAsistencia && (
                   <div className="space-y-4 mt-4">
                     {/* Tabla de participantes */}
