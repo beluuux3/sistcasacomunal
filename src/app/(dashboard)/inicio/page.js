@@ -109,6 +109,78 @@ export default function Inicio() {
             </div>
           </div>
         </Card>
+
+        {/* Contactos */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Unidad del Adulto Mayor */}
+          <Card>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Lightbulb size={24} className="text-amber-500" />
+                <h2 className="text-lg font-bold text-slate-900">
+                  Unidad del Adulto Mayor
+                </h2>
+              </div>
+              <h3 className="text-gray-600">
+                Para asuntos administrativos y coordinacion de talleres
+              </h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex gap-3">
+                  <Phone size={18} className="text-gray-500 shrink-0 mt-0.5" />
+                  <p className="text-gray-700">
+                    <strong>Celular:</strong> 75273874
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <MapPin size={18} className="text-gray-500 shrink-0 mt-0.5" />
+                  <p className="text-gray-700">
+                    <strong>Dirección:</strong> Unidad del Adulto Mayor (Mercado
+                    Camacho, lado Guardia Municipal).
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Clock size={18} className="text-gray-500 shrink-0 mt-0.5" />
+                  <p className="text-gray-700">
+                    <strong>Horarios:</strong> 09:00 a 16:00
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Soporte Técnico */}
+          <Card>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Users2 size={24} className="text-green-500" />
+                <h2 className="text-lg font-bold text-slate-900">
+                  Soporte técnico del Sistema
+                </h2>
+              </div>
+              <h3 className="text-gray-600">Errores, dudas o consultas </h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex gap-3">
+                  <Phone size={18} className="text-gray-500 shrink-0 mt-0.5" />
+                  <p className="text-gray-700">
+                    <strong>Celular:</strong> 67192700
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <MapPin size={18} className="text-gray-500 shrink-0 mt-0.5" />
+                  <p className="text-gray-700">
+                    <strong>Email:</strong> bsegales53@gmail.com
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Clock size={18} className="text-gray-500 shrink-0 mt-0.5" />
+                  <p className="text-gray-700">
+                    <strong>Horarios:</strong> 09:00-15:00 (Lun-Vie)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     );
   }

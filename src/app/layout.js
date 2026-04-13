@@ -16,6 +16,10 @@ export const metadata = {
   title: "Casas Comunales - Gestión",
   description:
     "Sistema de gestión de casas comunales para la Alcaldía de La Paz",
+  icons: {
+    icon: "/LOGOCASACOMUNAL.jpeg",
+    apple: "/LOGOCASACOMUNAL.jpeg",
+  },
 };
 
 export default function RootLayout({ children }) {
