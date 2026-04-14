@@ -6,6 +6,7 @@ import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useCasaStats } from "@/hooks/useCasaStats";
 import {
   Building2,
   BookOpen,
@@ -26,10 +27,29 @@ export default function Inicio() {
   const { usuario } = useAuth();
   const { casaSeleccionada } = useCasaSeleccionada();
 
-  const casaIdParam =
-    usuario?.rol === "Facilitador" ? casaSeleccionada?.id : null;
-  const { stats, charts, isLoading, error, loadStats } =
-    useDashboardStats(casaIdParam);
+  // Usar hooks diferentes según el rol
+  const isFacilitador = usuario?.rol === "Facilitador";
+  const casaId = isFacilitador ? casaSeleccionada?.id : null;
+
+  const {
+    stats: casaStats,
+    isLoading: casaLoading,
+    error: casaError,
+    loadStats: loadCasaStats,
+  } = useCasaStats(casaId);
+  const {
+    stats: adminStats,
+    charts,
+    isLoading: adminLoading,
+    error: adminError,
+    loadStats: loadAdminStats,
+  } = useDashboardStats();
+
+  // Seleccionar los datos y funciones correctas según el rol
+  const stats = isFacilitador ? casaStats : adminStats;
+  const isLoading = isFacilitador ? casaLoading : adminLoading;
+  const error = isFacilitador ? casaError : adminError;
+  const loadStats = isFacilitador ? loadCasaStats : loadAdminStats;
 
   useEffect(() => {
     loadStats();

@@ -34,29 +34,12 @@ export function CasaSeleccionadaProvider({ children }) {
         (h) => h.facilitador_id === usuario?.id,
       );
 
-      console.log(
-        "📊 HORARIOS COMPLETOS del facilitador:",
-        horariosDelFacilitador,
-      );
       if (horariosDelFacilitador.length > 0) {
-        console.log(
-          "🔍 PRIMER horario (JSON):",
-          JSON.stringify(horariosDelFacilitador[0], null, 2),
-        );
+        // Ya tenemos el primer horario
       }
       if (horariosDelFacilitador.length > 1) {
-        console.log(
-          "🔍 SEGUNDO horario (JSON):",
-          JSON.stringify(horariosDelFacilitador[1], null, 2),
-        );
+        // Ya tenemos horarios múltiples
       }
-      console.log(
-        "�📌 IDs de casas en horarios:",
-        horariosDelFacilitador.map(
-          (h) =>
-            `Casa ID: ${h.casa_comunal_id}, Nombre: ${h.casa_nombre}, Macrodistrito: ${h.macrodistrito}`,
-        ),
-      );
 
       // Extraer casas únicas
       const casasUnicas = [
@@ -72,15 +55,10 @@ export function CasaSeleccionadaProvider({ children }) {
         ).values(),
       ];
 
-      console.log(
-        `✅ Casas del Facilitador extraídas (${casasUnicas.length} casas):`,
-        casasUnicas,
-      );
       setCasasDelFacilitador(casasUnicas);
 
       // Si solo hay 1 casa, seleccionarla automáticamente
       if (casasUnicas.length === 1) {
-        console.log("Auto-seleccionando única casa:", casasUnicas[0].nombre);
         setCasaSeleccionada(casasUnicas[0]);
         localStorage.setItem(
           `casaSeleccionada_${usuario?.id}`,
@@ -88,9 +66,6 @@ export function CasaSeleccionadaProvider({ children }) {
         );
       } else if (casasUnicas.length > 1) {
         // Si hay múltiples, SOLO intentar recuperar si el usuario ya seleccionó una antes
-        console.log(
-          `❓ Hay ${casasUnicas.length} casas, intentando restaurar selección anterior...`,
-        );
         const savedCasaStr = localStorage.getItem(
           `casaSeleccionada_${usuario?.id}`,
         );
@@ -98,24 +73,18 @@ export function CasaSeleccionadaProvider({ children }) {
           try {
             const savedCasa = JSON.parse(savedCasaStr);
             if (savedCasa && savedCasa.id) {
-              console.log("✅ Casa anterior restaurada:", savedCasa.nombre);
               setCasaSeleccionada(savedCasa);
             }
           } catch (e) {
             // Si hay error al parsear, dejar sin casa seleccionada
-            console.warn("Invalid saved casa data:", e);
             setCasaSeleccionada(null);
           }
         } else {
           // No hay selección anterior - dejar en null para que se muestre selector
-          console.log(
-            "❓ Sin selección anterior, esperando que usuario elija en el selector",
-          );
           setCasaSeleccionada(null);
         }
       }
     } catch (err) {
-      console.error("Error loading casas del facilitador:", err);
       setCasasDelFacilitador([]);
     } finally {
       setIsLoadingCasas(false);

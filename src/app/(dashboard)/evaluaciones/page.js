@@ -1,191 +1,209 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Edit, Save, X, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Alert } from "@/components/ui/Alert";
-import { useAuth } from "@/context/AuthContext";
 import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
-import { getGrillaHorariosRequest } from "@/lib/auth";
+import { useAuth } from "@/context/AuthContext";
+import { cargarEvaluacionRequest, getGrillaHorariosRequest } from "@/lib/auth";
 import api from "@/lib/api";
-import { cargarEvaluacionRequest } from "@/lib/auth";
 
 export default function EvaluacionesPage() {
   const { usuario } = useAuth();
   const { casaSeleccionada } = useCasaSeleccionada();
 
-  const [successMessage, setSuccessMessage] = useState("");
-  const [formError, setFormError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Estados para participantes
   const [participantes, setParticipantes] = useState([]);
-  const [horariosData, setHorariosData] = useState([]);
-  
-  // Estados para admin
+  const [evaluaciones, setEvaluaciones] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [tallerId, setTallerId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Estados para administrador
   const [casas, setCasas] = useState([]);
   const [adminSelectedCasa, setAdminSelectedCasa] = useState("");
-  const [infoTallerAdmin, setInfoTallerAdmin] = useState(null);
-  
-  // Estados para notas
-  const [notas, setNotas] = useState({}); // { participante_id: { nota_1, nota_2 } }
+  const [adminSelectedCasaNombre, setAdminSelectedCasaNombre] = useState("");
 
-  // Cargar casas para admin
+  // Cargar participantes de la casa y su taller
   useEffect(() => {
     if (usuario?.rol === "Administrador") {
-      const loadCasas = async () => {
-        try {
-          const response = await api.get("/casas");
-          const casasData = Array.isArray(response.data) ? response.data : [];
-          setCasas(casasData);
-          // Cargar horarios
-          const horariosResp = await getGrillaHorariosRequest();
-          setHorariosData(horariosResp);
-        } catch (err) {
-          setFormError("Error cargando casas");
-        }
-      };
+      // Para admin: cargar todas las casas
       loadCasas();
+    } else if (casaSeleccionada?.id && usuario?.id) {
+      // Para facilitador: cargar datos de su casa
+      loadData(parseInt(casaSeleccionada.id));
     }
-  }, [usuario?.rol]);
+  }, [usuario?.rol, casaSeleccionada?.id, usuario?.id]);
 
-  // Auto-seleccionar primera casa para admin
+  // Cargar datos cuando admin selecciona una casa
   useEffect(() => {
-    if (
-      usuario?.rol === "Administrador" &&
-      casas.length > 0 &&
-      !adminSelectedCasa
-    ) {
-      handleAdminSelectCasa(casas[0].id.toString());
+    if (usuario?.rol === "Administrador" && adminSelectedCasa) {
+      loadData(parseInt(adminSelectedCasa));
     }
-  }, [usuario?.rol, casas, adminSelectedCasa]);
+  }, [adminSelectedCasa]);
 
-  // Cargar participantes cuando cambia la casa (facilitador)
-  useEffect(() => {
-    if (usuario?.rol === "Facilitador" && casaSeleccionada?.id) {
-      loadParticipantesDeCasa(casaSeleccionada.id);
-    }
-  }, [usuario?.rol, casaSeleccionada?.id]);
-
-  const loadParticipantesDeCasa = async (casaId) => {
-    setIsLoading(true);
+  const loadCasas = async () => {
     try {
-      const response = await api.get("/participantes");
-      const allParticipantes = Array.isArray(response.data) ? response.data : [];
-      const participantesDeCasa = allParticipantes.filter(
-        (p) => p.casa_comunal_id === casaId,
-      );
-      setParticipantes(participantesDeCasa);
-      
-      // Inicializar notas vacías para cada participante
-      const notasInit = {};
-      participantesDeCasa.forEach((p) => {
-        notasInit[p.id] = { nota_1: "", nota_2: "" };
-      });
-      setNotas(notasInit);
+      const response = await api.get("/casas");
+      const casasData = Array.isArray(response.data) ? response.data : [];
+      setCasas(casasData);
+
+      // Auto-seleccionar la primera casa
+      if (casasData.length > 0) {
+        setAdminSelectedCasa(casasData[0].id.toString());
+        setAdminSelectedCasaNombre(casasData[0].nombre);
+      }
     } catch (err) {
-      setFormError("Error cargando participantes");
+      setError("Error al cargar las casas");
+    }
+  };
+
+  const handleSelectCasa = (casaId) => {
+    const casa = casas.find((c) => c.id === parseInt(casaId));
+    setAdminSelectedCasa(casaId);
+    if (casa) {
+      setAdminSelectedCasaNombre(casa.nombre);
+    }
+  };
+
+  const loadData = async (casaId) => {
+    setIsLoading(true);
+    setError("");
+    try {
+      // Cargar participantes de la casa
+      const response = await api.get("/participantes", {
+        params: { skip: 0, limit: 100, casa_id: casaId },
+      });
+
+      const participantesData = Array.isArray(response.data)
+        ? response.data
+        : [];
+      setParticipantes(participantesData);
+
+      // Cargar horarios para obtener talleres de la casa
+      const horariosResponse = await getGrillaHorariosRequest(null, null, null);
+
+      const horarios = Array.isArray(horariosResponse) ? horariosResponse : [];
+      const horariosDelaCasa = horarios.filter((h) => h.casa_id === casaId);
+
+      if (horariosDelaCasa.length > 0) {
+        // Para admin, usar el primer taller de la casa
+        // Para facilitador, usar su taller
+        const tallerId =
+          usuario?.rol === "Administrador"
+            ? horariosDelaCasa[0].taller_id
+            : horariosDelaCasa.find((h) => h.facilitador_id === usuario?.id)
+                ?.taller_id || horariosDelaCasa[0].taller_id;
+
+        setTallerId(tallerId);
+      }
+
+      // Cargar evaluaciones existentes
+      const evaluacionesMap = {};
+      participantesData.forEach((p) => {
+        evaluacionesMap[p.id] = { nota_1: "", nota_2: "" };
+      });
+      setEvaluaciones(evaluacionesMap);
+    } catch (err) {
+      let errorMsg = "Error al cargar datos";
+
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === "object" && detail.msg) {
+          errorMsg = detail.msg;
+        } else if (typeof detail === "string") {
+          errorMsg = detail;
+        } else {
+          errorMsg = JSON.stringify(detail);
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAdminSelectCasa = async (casaId) => {
-    if (!casaId) {
-      setAdminSelectedCasa("");
-      setInfoTallerAdmin(null);
-      setParticipantes([]);
-      setNotas({});
-      return;
-    }
-
-    setAdminSelectedCasa(casaId);
-
-    try {
-      // Obtener información del taller de esta casa
-      const casaInt = parseInt(casaId);
-      const horariosDelaCasa = horariosData.filter(
-        (h) => h.casa_id === casaInt,
-      );
-
-      if (horariosDelaCasa.length > 0) {
-        const horario = horariosDelaCasa[0];
-        setInfoTallerAdmin({
-          tallerNombre: horario.taller_nombre,
-          facilitadorNombre: horario.facilitador_nombre || "No asignado",
-          tallerId: horario.taller_id,
-        });
-      }
-
-      // Cargar participantes
-      await loadParticipantesDeCasa(casaInt);
-    } catch (err) {
-      setFormError("Error seleccionando casa");
-    }
-  };
-
-  const handleUpdateNota = (participanteId, field, value) => {
-    setNotas((prev) => ({
+  const handleNotaChange = (participanteId, notaKey, value) => {
+    setEvaluaciones((prev) => ({
       ...prev,
       [participanteId]: {
         ...prev[participanteId],
-        [field]: value,
+        [notaKey]: value,
       },
     }));
   };
 
-  const handleGuardarNotas = async (participanteId) => {
-    const participanteNotas = notas[participanteId] || {};
-    const nota1 = parseFloat(participanteNotas.nota_1 || 0);
-    const nota2 = parseFloat(participanteNotas.nota_2 || 0);
-
-    if (isNaN(nota1) || nota1 < 0 || nota1 > 100) {
-      setFormError("Nota 1 debe ser un número entre 0 y 100");
+  const handleGuardarTodos = async () => {
+    if (!tallerId) {
+      setError("No se encontró el taller para esta casa");
       return;
     }
 
-    if (isNaN(nota2) || nota2 < 0 || nota2 > 100) {
-      setFormError("Nota 2 debe ser un número entre 0 y 100");
-      return;
-    }
+    setIsSaving(true);
+    setError("");
 
     try {
-      // Determinar taller_id
-      let tallerId;
-      if (usuario?.rol === "Administrador" && infoTallerAdmin) {
-        tallerId = infoTallerAdmin.tallerId;
-      } else if (usuario?.rol === "Facilitador") {
-        // Obtener primer taller del horario de la casa
-        const casaHorarios = horariosData.filter(
-          (h) => h.casa_id === casaSeleccionada?.id,
-        );
-        tallerId = casaHorarios[0]?.taller_id;
+      let errorOccurred = false;
+
+      // Guardar evaluaciones de todos los participantes que tengan notas
+      for (const participante of participantes) {
+        const nota1 = parseFloat(evaluaciones[participante.id]?.nota_1 || 0);
+        const nota2 = parseFloat(evaluaciones[participante.id]?.nota_2 || 0);
+
+        // Solo guardar si hay al menos una nota
+        if (nota1 > 0 || nota2 > 0) {
+          if (isNaN(nota1) || nota1 < 0 || nota1 > 100) {
+            setError(
+              `Participante ${participante.nombres}: Nota 1 debe estar entre 0 y 100`,
+            );
+            errorOccurred = true;
+            break;
+          }
+
+          if (isNaN(nota2) || nota2 < 0 || nota2 > 100) {
+            setError(
+              `Participante ${participante.nombres}: Nota 2 debe estar entre 0 y 100`,
+            );
+            errorOccurred = true;
+            break;
+          }
+
+          try {
+            await cargarEvaluacionRequest({
+              participante_id: participante.id,
+              taller_id: tallerId,
+              nota_1: nota1,
+              nota_2: nota2,
+              observaciones: "",
+            });
+          } catch (err) {
+            const errorMsg =
+              err.response?.data?.detail ||
+              err.message ||
+              `Error al guardar ${participante.nombres}`;
+            setError(errorMsg);
+            errorOccurred = true;
+            break;
+          }
+        }
       }
 
-      if (!tallerId) {
-        setFormError("No se pudo determinar el taller");
-        return;
+      if (!errorOccurred) {
+        setSuccessMessage("✅ Todas las evaluaciones guardadas correctamente");
+        setTimeout(() => setSuccessMessage(""), 3000);
+        setIsEditing(false);
       }
-
-      await cargarEvaluacionRequest({
-        participante_id: participanteId,
-        taller_id: tallerId,
-        nota_1: nota1,
-        nota_2: nota2,
-        observaciones: "",
-      });
-
-      setSuccessMessage("Notas guardadas correctamente");
-      setFormError("");
-      
-      // Limpiar notas guardadas
-      setNotas((prev) => ({
-        ...prev,
-        [participanteId]: { nota_1: "", nota_2: "" },
-      }));
-    } catch (err) {
-      setFormError(err.message || "Error guardando notas");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -197,30 +215,32 @@ export default function EvaluacionesPage() {
           Evaluaciones
         </h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">
-          Gestión de evaluaciones de participantes por casa comunal
+          Gestión de evaluaciones de participantes de{" "}
+          {usuario?.rol === "Administrador"
+            ? adminSelectedCasaNombre || "la casa seleccionada"
+            : casaSeleccionada?.nombre || "la casa"}
         </p>
       </div>
 
       {/* Messages */}
+      {error && <Alert type="error" title="Error" message={error} />}
       {successMessage && (
         <Alert type="success" title="Éxito" message={successMessage} />
       )}
-      {formError && <Alert type="error" title="Error" message={formError} />}
 
-      {/* Selector de Casa para Admin */}
-      {usuario?.rol === "Administrador" && (
+      {/* Dropdown de Casas para Administrador */}
+      {usuario?.rol === "Administrador" && casas.length > 0 && (
         <Card>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Seleccionar Casa Comunal
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Seleccionar Casa
             </label>
             <select
               value={adminSelectedCasa}
-              onChange={(e) => handleAdminSelectCasa(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-              style={{ color: "#111827" }}
+              onChange={(e) => handleSelectCasa(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-slate-500 focus:border-slate-500 text-gray-900"
             >
-              <option value="">Seleccionar casa</option>
+              <option value="">-- Seleccionar casa --</option>
               {casas.map((casa) => (
                 <option key={casa.id} value={casa.id}>
                   {casa.nombre}
@@ -231,127 +251,165 @@ export default function EvaluacionesPage() {
         </Card>
       )}
 
-      {/* Card de información del taller (solo admin) */}
-      {usuario?.rol === "Administrador" &&
-        adminSelectedCasa &&
-        infoTallerAdmin && (
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200">
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm text-gray-600">Taller:</p>
-                <p className="font-bold text-lg text-slate-900">
-                  {infoTallerAdmin.tallerNombre}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Facilitador:</p>
-                <p className="font-semibold text-slate-900">
-                  {infoTallerAdmin.facilitadorNombre}
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
-
-      {/* Tabla de Participantes con Notas */}
-      {(usuario?.rol === "Facilitador" ||
-        (usuario?.rol === "Administrador" && adminSelectedCasa)) && (
-        <Card>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : participantes.length === 0 ? (
-            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
-              <p className="text-sm text-yellow-800">
-                No hay participantes en esta casa.
-              </p>
-            </div>
+      {/* Botones de Editar/Guardar - Solo para Facilitador */}
+      {usuario?.rol !== "Administrador" && participantes.length > 0 && (
+        <div className="flex justify-end gap-3">
+          {!isEditing ? (
+            <Button
+              variant="primary"
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white"
+            >
+              <Edit size={18} />
+              Editar
+            </Button>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <>
+              <Button
+                variant="primary"
+                onClick={handleGuardarTodos}
+                disabled={isSaving}
+                className="flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white disabled:bg-gray-400"
+              >
+                <Save size={18} />
+                {isSaving ? "Guardando..." : "Guardar"}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setIsEditing(false)}
+                disabled={isSaving}
+                className="flex items-center gap-2"
+              >
+                <X size={18} />
+                Cancelar
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Tabla de Participantes */}
+      <Card>
+        {isLoading ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : participantes.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No hay participantes registrados en esta casa
+          </div>
+        ) : (
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full px-4 sm:px-0">
+              <table className="w-full text-xs sm:text-sm">
                 <thead className="bg-gray-100 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700 min-w-[180px]">
-                      Nombre
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-center w-12">
+                      Nº
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-left">
+                      Participante
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-left">
                       Nota 1
                     </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold text-gray-700 text-left">
                       Nota 2
-                    </th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-700">
-                      Acciones
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {participantes.map((participante) => (
-                    <tr key={participante.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-900">
-                        <div>
-                          <p className="font-medium text-sm">
-                            {participante.nombres} {participante.apellidos}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            CI: {participante.ci}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          value={notas[participante.id]?.nota_1 || ""}
-                          onChange={(e) =>
-                            handleUpdateNota(
-                              participante.id,
-                              "nota_1",
-                              e.target.value,
-                            )
-                          }
-                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="-"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          value={notas[participante.id]?.nota_2 || ""}
-                          onChange={(e) =>
-                            handleUpdateNota(
-                              participante.id,
-                              "nota_2",
-                              e.target.value,
-                            )
-                          }
-                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="-"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <Button
-                          variant="primary"
-                          onClick={() => handleGuardarNotas(participante.id)}
-                          className="p-1 text-xs"
-                        >
-                          Guardar
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {participantes.map((participante, index) => {
+                    const nombreCompleto =
+                      [
+                        participante.nombres,
+                        participante.apellido_paterno,
+                        participante.apellido_materno,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")
+                        .toUpperCase() || "SIN NOMBRE";
+
+                    const ci =
+                      participante.ci || participante.num_documento || "SIN CI";
+
+                    return (
+                      <tr
+                        key={participante.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-gray-500 font-medium">
+                          {index + 1}
+                        </td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                          <div className="text-gray-900 font-medium">
+                            {nombreCompleto}
+                          </div>
+                          <div className="text-gray-600 text-xs">CI: {ci}</div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                          {usuario?.rol === "Administrador" ? (
+                            <span className="text-gray-900">
+                              {evaluaciones[participante.id]?.nota_1 || "-"}
+                            </span>
+                          ) : (
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              disabled={!isEditing}
+                              value={
+                                evaluaciones[participante.id]?.nota_1 || ""
+                              }
+                              onChange={(e) =>
+                                handleNotaChange(
+                                  participante.id,
+                                  "nota_1",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="0-100"
+                              className="w-20"
+                            />
+                          )}
+                        </td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                          {usuario?.rol === "Administrador" ? (
+                            <span className="text-gray-900">
+                              {evaluaciones[participante.id]?.nota_2 || "-"}
+                            </span>
+                          ) : (
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              disabled={!isEditing}
+                              value={
+                                evaluaciones[participante.id]?.nota_2 || ""
+                              }
+                              onChange={(e) =>
+                                handleNotaChange(
+                                  participante.id,
+                                  "nota_2",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="0-100"
+                              className="w-20"
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          )}
-        </Card>
-      )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

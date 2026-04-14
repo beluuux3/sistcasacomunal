@@ -218,14 +218,12 @@ export default function AsistenciaPage() {
 
           // Cargar participantes de la casa
           try {
-            const response = await api.get("/participantes");
-            const allParticipantes = Array.isArray(response.data)
+            const response = await api.get("/participantes", {
+              params: { skip: 0, limit: 100, casa_id: casaSeleccionada.id },
+            });
+            const participantesDeCasa = Array.isArray(response.data)
               ? response.data
               : [];
-            // Filtrar participantes de la casa seleccionada
-            const participantesDeCasa = allParticipantes.filter(
-              (p) => p.casa_comunal_id === casaSeleccionada.id,
-            );
             setParticipantes(participantesDeCasa);
             // Inicializar asistencias en blanco
             const asistenciasInit = {};
@@ -298,13 +296,12 @@ export default function AsistenciaPage() {
         });
 
         // Cargar participantes de la casa
-        const response = await api.get("/participantes");
-        const allParticipantes = Array.isArray(response.data)
+        const response = await api.get("/participantes", {
+          params: { skip: 0, limit: 100, casa_id: casaInt },
+        });
+        const participantesDeCasa = Array.isArray(response.data)
           ? response.data
           : [];
-        const participantesDeCasa = allParticipantes.filter(
-          (p) => p.casa_comunal_id === casaInt,
-        );
         setParticipantes(participantesDeCasa);
         setAsistencias({});
 
