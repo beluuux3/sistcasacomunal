@@ -46,7 +46,13 @@ function formatFecha(fechaStr) {
 
 export default function ControlLlegadaSalidaPage() {
   const { casaSeleccionada } = useCasaSeleccionada();
-  const { controles, isLoading: isLoadingHistorial, loadControles, checkIn, checkOut } = useControlFacilitadores();
+  const {
+    controles,
+    isLoading: isLoadingHistorial,
+    loadControles,
+    checkIn,
+    checkOut,
+  } = useControlFacilitadores();
 
   useEffect(() => {
     loadControles();
@@ -56,7 +62,9 @@ export default function ControlLlegadaSalidaPage() {
   const todayBolivia = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/La_Paz",
   }).format(new Date());
-  const controlDeHoy = controles.find((c) => c.fecha === todayBolivia && !c.hora_salida);
+  const controlDeHoy = controles.find(
+    (c) => c.fecha === todayBolivia && !c.hora_salida,
+  );
 
   const [ubicacion, setUbicacion] = useState(null);
   const [foto, setFoto] = useState(null);
@@ -84,11 +92,9 @@ export default function ControlLlegadaSalidaPage() {
             lng: position.coords.longitude,
             accuracy: position.coords.accuracy,
           });
-          console.log("GPS location obtained:", position.coords);
           setIsLoadingGPS(false);
         },
         (err) => {
-          console.error("Error obteniendo ubicación:", err);
           setGpsError(
             "No se pudo obtener la ubicación. Habilita el GPS en tu dispositivo.",
           );
@@ -113,7 +119,6 @@ export default function ControlLlegadaSalidaPage() {
       setCameraActive(true);
     } catch (err) {
       setError("No se puede acceder a la cámara");
-      console.error(err);
     }
   };
 
@@ -183,8 +188,15 @@ export default function ControlLlegadaSalidaPage() {
     setIsSaving(true);
     try {
       const fotoBlob = await fetch(foto).then((r) => r.blob());
-      const fotoFile = new File([fotoBlob], "foto_entrada.jpg", { type: "image/jpeg" });
-      await checkIn(ubicacion?.lat ?? 0, ubicacion?.lng ?? 0, fotoFile, casaSeleccionada.id);
+      const fotoFile = new File([fotoBlob], "foto_entrada.jpg", {
+        type: "image/jpeg",
+      });
+      await checkIn(
+        ubicacion?.lat ?? 0,
+        ubicacion?.lng ?? 0,
+        fotoFile,
+        casaSeleccionada.id,
+      );
       setSuccessMessage("Llegada registrada correctamente");
       setFoto(null);
       setFotoPreview(null);
@@ -200,7 +212,9 @@ export default function ControlLlegadaSalidaPage() {
   const handleRegistrarSalida = async () => {
     setError("");
     if (!controlDeHoy) {
-      setError("No hay un check-in activo para hoy. Registra tu llegada primero.");
+      setError(
+        "No hay un check-in activo para hoy. Registra tu llegada primero.",
+      );
       return;
     }
     if (!fotoSalida) {
@@ -210,7 +224,9 @@ export default function ControlLlegadaSalidaPage() {
     setIsSaving(true);
     try {
       const fotoBlob = await fetch(fotoSalida).then((r) => r.blob());
-      const fotoFile = new File([fotoBlob], "foto_salida.jpg", { type: "image/jpeg" });
+      const fotoFile = new File([fotoBlob], "foto_salida.jpg", {
+        type: "image/jpeg",
+      });
       await checkOut(controlDeHoy.id, fotoFile);
       setSuccessMessage("Salida registrada correctamente");
       setFotoSalida(null);
@@ -463,7 +479,9 @@ export default function ControlLlegadaSalidaPage() {
       <Card>
         <div className="flex items-center gap-2 mb-4">
           <History size={22} className="text-slate-600" />
-          <h2 className="text-xl font-bold text-slate-900">Historial de registros</h2>
+          <h2 className="text-xl font-bold text-slate-900">
+            Historial de registros
+          </h2>
         </div>
 
         {isLoadingHistorial ? (
