@@ -199,7 +199,9 @@ export default function AsistenciaPage() {
           const horarios = await getGrillaHorariosRequest();
           // Filtrar horarios para la casa seleccionada
           const horariosDelaCasa = horarios.filter(
-            (h) => h.casa_id === casaSeleccionada.id,
+            (h) =>
+              h.casa_id === casaSeleccionada.id &&
+              h.facilitador_id === usuario?.id,
           );
           // Obtener IDs únicos de talleres
           const tallerIds = [
@@ -371,7 +373,10 @@ export default function AsistenciaPage() {
       );
       setSuccessMessage("Asistencia registrada correctamente");
       setAsistencias({});
-      setSelectedTallerForAsistencia("");
+      // Solo limpiar selección si hay múltiples talleres; con 1 taller no hay que volver a seleccionar
+      if (talleresDelFacilitador.length !== 1) {
+        setSelectedTallerForAsistencia("");
+      }
     } catch (err) {
       setFormError(err.message);
     }
