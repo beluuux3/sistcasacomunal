@@ -30,17 +30,26 @@ export function useParticipantes() {
         );
 
         // Validar que los datos sean de la casa seleccionada (seguridad)
+        let participantesData = Array.isArray(data) ? data : [];
         if (casaId) {
-          const filtered = data.filter((p) => p.casa_comunal_id === casaId);
-          if (filtered.length !== data.length) {
+          participantesData = participantesData.filter(
+            (p) => p.casa_comunal_id === casaId,
+          );
+          if (participantesData.length !== data.length) {
             console.warn(
               "Datos de participantes de otras casas fueron filtrados",
             );
           }
-          setParticipantes(Array.isArray(filtered) ? filtered : []);
-        } else {
-          setParticipantes(Array.isArray(data) ? data : []);
         }
+
+        // Ordenar por fecha de creación (más recientes primero)
+        participantesData.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0);
+          const dateB = new Date(b.created_at || 0);
+          return dateB - dateA; // Orden descendente
+        });
+
+        setParticipantes(participantesData);
       } catch (err) {
         setError(
           err.response?.data?.detail ||

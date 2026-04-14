@@ -503,10 +503,10 @@ export default function ParticipantesPage() {
       {/* Mensajes */}
       {error && <Alert type="error" title="Error" message={error} />}
       {successMessage && (
-        <Alert type="success" title="Ã‰xito" message={successMessage} />
+        <Alert type="success" title="Éxito" message={successMessage} />
       )}
 
-      {/* BÃºsqueda */}
+      {/* Búsqueda */}
       <Card>
         <SearchInput
           value={filtro}
@@ -542,7 +542,7 @@ export default function ParticipantesPage() {
                   participantesPage.map((participante, index) => (
                     <TableRow key={participante.id}>
                       <TableCell className="font-semibold text-gray-700">
-                        {startIndex + index + 1}
+                        {participantesFiltrados.length - startIndex - index}
                       </TableCell>
                       <TableCell className="font-medium">
                         {`${participante.apellido_paterno || ""} ${participante.apellido_materno || ""} ${participante.nombres || ""}`.trim()}

@@ -5,11 +5,11 @@ export function Input({
   required = false,
   rightElement,
   leftIcon,
-  labelClassName = "text-gray-300",
+  labelClassName = "text-gray-900",
   ...props
 }) {
   const baseStyles =
-    "w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400";
+    "w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black placeholder:text-gray-500";
 
   const errorStyles = error
     ? "border-red-500 focus:ring-red-500"
