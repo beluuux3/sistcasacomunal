@@ -41,7 +41,7 @@ export function Modal({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-gradient-to-r from-blue-50 to-indigo-50 z-10">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900">
               {title}
             </h2>

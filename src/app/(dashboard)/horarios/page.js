@@ -13,7 +13,11 @@ import { useGestion } from "@/context/GestionContext";
 import { useGestiones } from "@/hooks/useGestiones";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Printer,
+  generateHorarioSemanalPDF,
+  generateHorarioDiaPDF,
+} from "@/utils/generateHorarioPDFContent";
+import {
+  Download,
   Users,
   Clock,
   Edit2,
@@ -60,6 +64,7 @@ export default function HorariosPage() {
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
   const [casaSeleccionada, setCasaSeleccionada] = useState(null);
   const [showNewGestionModal, setShowNewGestionModal] = useState(false);
+  const [showPdfSelectModal, setShowPdfSelectModal] = useState(false);
   const [gestionFormData, setGestionFormData] = useState({
     anio: new Date().getFullYear(),
     trimestre: 1,
@@ -117,6 +122,33 @@ export default function HorariosPage() {
     window.print();
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      const doc = generateHorarioSemanalPDF(horarios, gestionActiva);
+      doc.save("HORARIOS_CASA_COMUNALES.pdf");
+      setShowPdfSelectModal(false);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error al generar PDF: " + error.message);
+    }
+  };
+
+  const handleDownloadPDFPorDia = async () => {
+    try {
+      const doc = generateHorarioDiaPDF(
+        horarios,
+        gestionActiva,
+        casas,
+        facilitadores,
+      );
+      doc.save("HORARIOS_POR_DIA.pdf");
+      setShowPdfSelectModal(false);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error al generar PDF: " + error.message);
+    }
+  };
+
   const handleCreateGestion = async () => {
     if (usuario?.rol !== "Administrador") {
       alert("Solo los administradores pueden crear gestiones");
@@ -167,11 +199,11 @@ export default function HorariosPage() {
           )}
         </div>
         <button
-          onClick={handlePrint}
-          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors sm:order-2"
+          onClick={() => setShowPdfSelectModal(true)}
+          className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap"
         >
-          <Printer size={18} />
-          Imprimir
+          <Download size={18} />
+          Descargar PDF
         </button>
       </div>
 
@@ -1091,6 +1123,41 @@ export default function HorariosPage() {
               })
             }
           />
+        </div>
+      </Modal>
+
+      {/* Modal Selección de Tipo de PDF */}
+      <Modal
+        isOpen={showPdfSelectModal}
+        onClose={() => setShowPdfSelectModal(false)}
+        title="Descargar Horario en PDF"
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 text-base">
+            Selecciona el tipo de PDF que deseas descargar:
+          </p>
+          <div className="flex gap-2 flex-col sm:flex-row">
+            <Button
+              onClick={() => handleDownloadPDF()}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Horario Semanal
+            </Button>
+            <Button
+              onClick={() => handleDownloadPDFPorDia()}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+            >
+              Horario por Día
+            </Button>
+          </div>
+          <Button
+            onClick={() => setShowPdfSelectModal(false)}
+            variant="secondary"
+            className="w-full"
+          >
+            Cancelar
+          </Button>
         </div>
       </Modal>
     </div>
