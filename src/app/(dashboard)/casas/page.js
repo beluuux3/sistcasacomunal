@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, Download } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/Table";
 import { useCasas } from "@/hooks/useCasas";
 import { MapPicker } from "@/components/MapPicker";
+import { downloadCasaComunalPDF } from "@/utils/generateCasaComunalPDF";
 
 export default function CasasPage() {
   const {
@@ -40,6 +41,8 @@ export default function CasasPage() {
   const [formError, setFormError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedCasaForView, setSelectedCasaForView] = useState(null);
   const [formData, setFormData] = useState({
     nombre: "",
     direccion: "",
@@ -118,7 +121,10 @@ export default function CasasPage() {
     setIsEditing(true);
     setIsModalOpen(true);
   };
-
+  const handleViewCasa = (casa) => {
+    setSelectedCasaForView(casa);
+    setIsViewModalOpen(true);
+  };
   const handleNewCasa = () => {
     resetForm();
     setIsModalOpen(true);
@@ -206,6 +212,14 @@ export default function CasasPage() {
                         <div className="flex items-center justify-center gap-2">
                           <Button
                             variant="ghost"
+                            onClick={() => handleViewCasa(casa)}
+                            className="p-1"
+                            title="Ver detalles"
+                          >
+                            <Eye size={18} className="text-slate-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
                             onClick={() => handleEdit(casa)}
                             className="p-1"
                             title="Editar"
@@ -238,6 +252,137 @@ export default function CasasPage() {
           </>
         )}
       </Card>
+
+      {/* Modal Ver Casa Comunal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedCasaForView(null);
+        }}
+        title="Detalles de Casa Comunal"
+        footerActions={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setIsViewModalOpen(false);
+                setSelectedCasaForView(null);
+              }}
+            >
+              Cerrar
+            </Button>
+            {selectedCasaForView && (
+              <Button
+                variant="primary"
+                onClick={async () =>
+                  await downloadCasaComunalPDF(selectedCasaForView)
+                }
+                className="flex items-center gap-2 bg-slate-600 hover:bg-slate-700 text-white"
+              >
+                <Download size={18} />
+                Descargar PDF
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedCasaForView && (
+          <div className="space-y-6">
+            {/* Información General */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Información General
+              </h3>
+              <div className="space-y-3 text-gray-700">
+                <div>
+                  <p className="font-semibold text-sm text-gray-600">Nombre</p>
+                  <p className="text-base">{selectedCasaForView.nombre}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-gray-600">
+                    Dirección
+                  </p>
+                  <p className="text-base">{selectedCasaForView.direccion}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-gray-600">
+                    Macrodistrito
+                  </p>
+                  <p className="text-base">
+                    {selectedCasaForView.macrodistrito}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Representante */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Representante
+              </h3>
+              <div className="space-y-3 text-gray-700">
+                <div>
+                  <p className="font-semibold text-sm text-gray-600">Nombre</p>
+                  <p className="text-base">
+                    {selectedCasaForView.representante_nombre || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-gray-600">
+                    Cédula de Identidad
+                  </p>
+                  <p className="text-base">
+                    {selectedCasaForView.representante_ci || "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contacto */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">Contacto</h3>
+              <div className="space-y-3 text-gray-700">
+                <div>
+                  <p className="font-semibold text-sm text-gray-600">
+                    Teléfono
+                  </p>
+                  <p className="text-base">
+                    {selectedCasaForView.contacto_telefono || "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Ubicación */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Ubicación
+              </h3>
+              <div className="space-y-3 text-gray-700">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="font-semibold text-sm text-gray-600">
+                      Latitud
+                    </p>
+                    <p className="text-base">
+                      {selectedCasaForView.latitud || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-600">
+                      Longitud
+                    </p>
+                    <p className="text-base">
+                      {selectedCasaForView.longitud || "-"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Modal Crear/Editar */}
       <Modal
