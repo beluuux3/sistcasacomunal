@@ -261,7 +261,7 @@ export default function UsuariosPage() {
         <SearchInput
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
-          placeholder="Buscar por nombre, email o CI..."
+          placeholder="Buscar por nombre, email, CI o celular..."
         />
       </Card>
 
@@ -279,6 +279,7 @@ export default function UsuariosPage() {
                   <TableHeader>Nº</TableHeader>
                   <TableHeader>Nombre</TableHeader>
                   <TableHeader>Email</TableHeader>
+                  <TableHeader>Celular</TableHeader>
                   <TableHeader hidden={true}>CI</TableHeader>
                   <TableHeader>Rol</TableHeader>
                   <TableHeader>Estado</TableHeader>
@@ -298,6 +299,7 @@ export default function UsuariosPage() {
                         {user.nombre_completo}
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.telefono || "-"}</TableCell>
                       <TableCell hidden={true}>{user.ci}</TableCell>
                       <TableCell>{getRolBadge(user.rol)}</TableCell>
                       <TableCell>{getActivoBadge(user.activo)}</TableCell>

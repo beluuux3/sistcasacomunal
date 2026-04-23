@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "https://casas-comunales.onrender.com";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
 
 // Crear instancia de axios
 const api = axios.create({

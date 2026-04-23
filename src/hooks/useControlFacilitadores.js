@@ -4,6 +4,8 @@ import {
   checkOutFacilitadorRequest,
   listarControlesFacilitadorRequest,
   validarControlFacilitadorRequest,
+  crearControlFacilitadorAdminRequest,
+  actualizarControlFacilitadorAdminRequest,
   listarDocumentosFacilitadorRequest,
   subirDocumentoFacilitadorRequest,
   actualizarEstadoDocumentoRequest,
@@ -21,17 +23,25 @@ export function useControlFacilitadores() {
   const [error, setError] = useState("");
 
   // Check-in (con geolocalización y foto)
-  const checkIn = useCallback(async (latitud, longitud, foto, casaComunalId) => {
-    try {
-      const response = await checkInFacilitadorRequest(latitud, longitud, foto, casaComunalId);
-      setControlHoy(response);
-      return response;
-    } catch (err) {
-      const errorMsg =
-        err.response?.data?.detail || err.message || "Error en check-in";
-      throw { message: errorMsg };
-    }
-  }, []);
+  const checkIn = useCallback(
+    async (latitud, longitud, foto, casaComunalId) => {
+      try {
+        const response = await checkInFacilitadorRequest(
+          latitud,
+          longitud,
+          foto,
+          casaComunalId,
+        );
+        setControlHoy(response);
+        return response;
+      } catch (err) {
+        const errorMsg =
+          err.response?.data?.detail || err.message || "Error en check-in";
+        throw { message: errorMsg };
+      }
+    },
+    [],
+  );
 
   // Check-out (con foto)
   const checkOut = useCallback(async (controlId, foto) => {
@@ -95,6 +105,55 @@ export function useControlFacilitadores() {
     [],
   );
 
+  // Crear control manual (admin)
+  const crearControlAdmin = useCallback(async (payload) => {
+    try {
+      const result = await crearControlFacilitadorAdminRequest(payload);
+      setControles((prev) => [result, ...prev]);
+      return result;
+    } catch (err) {
+      let errorMsg = "Error al crear control";
+      if (err.response?.data?.detail) {
+        errorMsg =
+          typeof err.response.data.detail === "string"
+            ? err.response.data.detail
+            : JSON.stringify(err.response.data.detail);
+      } else if (err.message && typeof err.message === "string") {
+        errorMsg = err.message;
+      } else if (err.message && typeof err.message === "object") {
+        errorMsg = err.message.msg || JSON.stringify(err.message);
+      }
+      throw { message: errorMsg };
+    }
+  }, []);
+
+  // Actualizar control manual (admin)
+  const actualizarControlAdmin = useCallback(async (controlId, payload) => {
+    try {
+      const result = await actualizarControlFacilitadorAdminRequest(
+        controlId,
+        payload,
+      );
+      setControles((prev) =>
+        prev.map((c) => (c.id === controlId ? result : c)),
+      );
+      return result;
+    } catch (err) {
+      let errorMsg = "Error al actualizar control";
+      if (err.response?.data?.detail) {
+        errorMsg =
+          typeof err.response.data.detail === "string"
+            ? err.response.data.detail
+            : JSON.stringify(err.response.data.detail);
+      } else if (err.message && typeof err.message === "string") {
+        errorMsg = err.message;
+      } else if (err.message && typeof err.message === "object") {
+        errorMsg = err.message.msg || JSON.stringify(err.message);
+      }
+      throw { message: errorMsg };
+    }
+  }, []);
+
   // Listar documentos de facilitador
   const loadDocumentos = useCallback(async (facilitadorId = null) => {
     try {
@@ -153,6 +212,8 @@ export function useControlFacilitadores() {
     checkOut,
     loadControles,
     validarControl,
+    crearControlAdmin,
+    actualizarControlAdmin,
     loadDocumentos,
     subirDocumento,
     actualizarEstadoDocumento,
