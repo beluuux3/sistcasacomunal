@@ -21,21 +21,41 @@ import {
 
 function formatHora(timeStr, fechaStr) {
   if (!timeStr) return "-";
-  try {
-    // Combinar fecha + hora para crear un timestamp UTC completo
-    const fecha = fechaStr ?? new Date().toISOString().split("T")[0];
-    const iso = `${fecha}T${timeStr.includes("Z") ? timeStr : timeStr + "Z"}`;
-    const date = new Date(iso);
-    if (isNaN(date.getTime())) return timeStr.substring(0, 5);
-    return new Intl.DateTimeFormat("es-BO", {
-      timeZone: "America/La_Paz",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(date);
-  } catch {
-    return timeStr.substring(0, 5);
+  const raw = String(timeStr).trim();
+
+  // Maneja formatos: HH:mm:ss, HH:mm:ss.SSSSSS, con o sin Z/offset.
+  const timeOnly = raw.includes("T") ? raw.split("T")[1] : raw;
+  const match = timeOnly.match(
+    /^(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/,
+  );
+
+  if (match) {
+    const [, hh, mm, ss, fraction = "", tz = ""] = match;
+    const isAdminManualTime = ss === "00" && !fraction;
+
+    // Admin crea desde input HH:mm -> guardar/mostrar sin conversion.
+    if (isAdminManualTime) {
+      return `${hh}:${mm}`;
+    }
+
+    // Facilitador (segundos reales y/o fraccion) -> convertir UTC a hora Bolivia.
+    const normalizedTz = tz || "Z";
+    const parsed = new Date(
+      `1970-01-01T${hh}:${mm}:${ss}${fraction}${normalizedTz}`,
+    );
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat("es-BO", {
+        timeZone: "America/La_Paz",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(parsed);
+    }
+
+    return `${hh}:${mm}`;
   }
+
+  return raw.replace("Z", "").slice(0, 5) || "-";
 }
 
 function formatFecha(fechaStr) {

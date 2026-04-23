@@ -53,7 +53,10 @@ export default function ReportesPage() {
   const [selectedCasa, setSelectedCasa] = useState("");
   const [selectedActividad, setSelectedActividad] = useState("");
 
-  const [currentPageAsistenciaParticipante, setCurrentPageAsistenciaParticipante] = useState(1);
+  const [
+    currentPageAsistenciaParticipante,
+    setCurrentPageAsistenciaParticipante,
+  ] = useState(1);
   const [currentPageAsistenciaCasa, setCurrentPageAsistenciaCasa] = useState(1);
   const [currentPageEvaluaciones, setCurrentPageEvaluaciones] = useState(1);
   const [currentPageActividades, setCurrentPageActividades] = useState(1);
@@ -72,7 +75,9 @@ export default function ReportesPage() {
             listActividadesRequest(),
           ]);
         setTalleres(Array.isArray(talleresData) ? talleresData : []);
-        setParticipantes(Array.isArray(participantesData) ? participantesData : []);
+        setParticipantes(
+          Array.isArray(participantesData) ? participantesData : [],
+        );
         setCasas(Array.isArray(casasData) ? casasData : []);
         setActividades(Array.isArray(actividadesData) ? actividadesData : []);
       } catch {
@@ -138,7 +143,9 @@ export default function ReportesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Reportes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+            Reportes
+          </h1>
           <p className="text-sm sm:text-base text-gray-600 mt-2">
             Análisis integral de la gestión
           </p>
@@ -184,25 +191,35 @@ export default function ReportesPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-linear-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-blue-700 mb-1">Total participantes</p>
+                  <p className="text-sm font-medium text-blue-700 mb-1">
+                    Total participantes
+                  </p>
                   <p className="text-3xl font-bold text-blue-900">
                     {estadisticas?.total_participantes ?? 0}
                   </p>
                 </div>
                 <div className="bg-linear-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-green-700 mb-1">Total casas</p>
+                  <p className="text-sm font-medium text-green-700 mb-1">
+                    Total casas
+                  </p>
                   <p className="text-3xl font-bold text-green-900">
                     {estadisticas?.total_casas ?? 0}
                   </p>
                 </div>
                 <div className="bg-linear-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-purple-700 mb-1">Total talleres</p>
+                  <p className="text-sm font-medium text-purple-700 mb-1">
+                    Total talleres
+                  </p>
                   <p className="text-3xl font-bold text-purple-900">
-                    {estadisticas?.total_talleres ?? estadisticas?.talleres_activos ?? 0}
+                    {estadisticas?.total_talleres ??
+                      estadisticas?.talleres_activos ??
+                      0}
                   </p>
                 </div>
                 <div className="bg-linear-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
-                  <p className="text-sm font-medium text-orange-700 mb-1">Facilitadores</p>
+                  <p className="text-sm font-medium text-orange-700 mb-1">
+                    Facilitadores
+                  </p>
                   <p className="text-3xl font-bold text-orange-900">
                     {estadisticas?.total_facilitadores ?? 0}
                   </p>
@@ -225,7 +242,9 @@ export default function ReportesPage() {
                         <span className="text-sm font-medium text-gray-700 w-48 truncate">
                           {casa.nombre}
                         </span>
-                        <span className="text-xs text-gray-500">{casa.macrodistrito}</span>
+                        <span className="text-xs text-gray-500">
+                          {casa.macrodistrito}
+                        </span>
                       </div>
                     ))}
                     {casas.length > 8 && (
@@ -258,33 +277,57 @@ export default function ReportesPage() {
                 ))}
               </Select>
 
-              {selectedParticipante && (
-                asistenciaRows.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-4">Sin registros de asistencia.</p>
+              {selectedParticipante &&
+                (asistenciaRows.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">
+                    Sin registros de asistencia.
+                  </p>
                 ) : (
                   <>
                     <div className="overflow-x-auto rounded-lg border border-gray-200">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Taller</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Presentes</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Total</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">%</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                              Taller
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Presentes
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Total
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              %
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {paginate(asistenciaRows, currentPageAsistenciaParticipante).map((row, i) => {
-                            const pct = row.total_clases > 0
-                              ? Math.round((row.presentes / row.total_clases) * 100)
-                              : 0;
+                          {paginate(
+                            asistenciaRows,
+                            currentPageAsistenciaParticipante,
+                          ).map((row, i) => {
+                            const pct =
+                              row.total_clases > 0
+                                ? Math.round(
+                                    (row.presentes / row.total_clases) * 100,
+                                  )
+                                : 0;
                             return (
                               <tr key={i}>
-                                <td className="px-4 py-3 text-gray-900">{row.taller_nombre ?? row.taller ?? "-"}</td>
-                                <td className="px-4 py-3 text-center text-gray-600">{row.presentes ?? "-"}</td>
-                                <td className="px-4 py-3 text-center text-gray-600">{row.total_clases ?? "-"}</td>
+                                <td className="px-4 py-3 text-gray-900">
+                                  {row.taller_nombre ?? row.taller ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-600">
+                                  {row.presentes ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-600">
+                                  {row.total_clases ?? "-"}
+                                </td>
                                 <td className="px-4 py-3 text-center">
-                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${pct >= 70 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs font-semibold ${pct >= 70 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                                  >
                                     {pct}%
                                   </span>
                                 </td>
@@ -302,8 +345,7 @@ export default function ReportesPage() {
                       totalItems={asistenciaRows.length}
                     />
                   </>
-                )
-              )}
+                ))}
             </div>
           ) : activeTab === "asistencia-casa" ? (
             <div className="space-y-4">
@@ -326,35 +368,63 @@ export default function ReportesPage() {
                 ))}
               </Select>
 
-              {selectedCasa && (
-                asistenciaCasaRows.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-4">Sin registros de asistencia.</p>
+              {selectedCasa &&
+                (asistenciaCasaRows.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">
+                    Sin registros de asistencia.
+                  </p>
                 ) : (
                   <>
                     <div className="overflow-x-auto rounded-lg border border-gray-200">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Taller</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Sesiones</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Presentes</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Ausentes</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">%</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                              Taller
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Sesiones
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Presentes
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Ausentes
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              %
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {paginate(asistenciaCasaRows, currentPageAsistenciaCasa).map((row, i) => {
-                            const pct = row.total_clases > 0
-                              ? Math.round((row.presentes / row.total_clases) * 100)
-                              : 0;
+                          {paginate(
+                            asistenciaCasaRows,
+                            currentPageAsistenciaCasa,
+                          ).map((row, i) => {
+                            const pct =
+                              row.total_clases > 0
+                                ? Math.round(
+                                    (row.presentes / row.total_clases) * 100,
+                                  )
+                                : 0;
                             return (
                               <tr key={i}>
-                                <td className="px-4 py-3 text-gray-900 font-medium">{row.taller_nombre ?? row.taller ?? "-"}</td>
-                                <td className="px-4 py-3 text-center text-gray-600">{row.total_clases ?? "-"}</td>
-                                <td className="px-4 py-3 text-center text-gray-600">{row.presentes ?? "-"}</td>
-                                <td className="px-4 py-3 text-center text-gray-600">{row.ausentes ?? "-"}</td>
+                                <td className="px-4 py-3 text-gray-900 font-medium">
+                                  {row.taller_nombre ?? row.taller ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-600">
+                                  {row.total_clases ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-600">
+                                  {row.presentes ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-600">
+                                  {row.ausentes ?? "-"}
+                                </td>
                                 <td className="px-4 py-3 text-center">
-                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${pct >= 70 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs font-semibold ${pct >= 70 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                                  >
                                     {pct}%
                                   </span>
                                 </td>
@@ -372,8 +442,7 @@ export default function ReportesPage() {
                       totalItems={asistenciaCasaRows.length}
                     />
                   </>
-                )
-              )}
+                ))}
             </div>
           ) : activeTab === "evaluaciones" ? (
             <div className="space-y-4">
@@ -396,31 +465,47 @@ export default function ReportesPage() {
                 ))}
               </Select>
 
-              {selectedTaller && (
-                evaluacionesRows.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-4">Sin evaluaciones registradas.</p>
+              {selectedTaller &&
+                (evaluacionesRows.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">
+                    Sin evaluaciones registradas.
+                  </p>
                 ) : (
                   <>
                     <div className="overflow-x-auto rounded-lg border border-gray-200">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Participante</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Nota 1</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Nota 2</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Promedio</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Estado</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                              Participante
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Nota 1
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Nota 2
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Promedio
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Estado
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {paginate(evaluacionesRows, currentPageEvaluaciones).map((row, i) => {
+                          {paginate(
+                            evaluacionesRows,
+                            currentPageEvaluaciones,
+                          ).map((row, i) => {
                             const nota1 = row.nota_1 ?? null;
                             const nota2 = row.nota_2 ?? null;
                             const promedio =
                               nota1 !== null && nota2 !== null
                                 ? Math.round((nota1 + nota2) / 2)
-                                : nota1 ?? nota2 ?? null;
-                            const aprobado = promedio !== null && promedio >= 60;
+                                : (nota1 ?? nota2 ?? null);
+                            const aprobado =
+                              promedio !== null && promedio >= 60;
                             return (
                               <tr key={i}>
                                 <td className="px-4 py-3 text-gray-900">
@@ -437,11 +522,15 @@ export default function ReportesPage() {
                                 </td>
                                 <td className="px-4 py-3 text-center">
                                   {promedio !== null ? (
-                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${aprobado ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                                    <span
+                                      className={`px-2 py-1 rounded text-xs font-semibold ${aprobado ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                                    >
                                       {aprobado ? "Aprobado" : "Reprobado"}
                                     </span>
                                   ) : (
-                                    <span className="text-gray-400 text-xs">Sin nota</span>
+                                    <span className="text-gray-400 text-xs">
+                                      Sin nota
+                                    </span>
                                   )}
                                 </td>
                               </tr>
@@ -458,8 +547,7 @@ export default function ReportesPage() {
                       totalItems={evaluacionesRows.length}
                     />
                   </>
-                )
-              )}
+                ))}
             </div>
           ) : (
             // ACTIVIDADES
@@ -483,36 +571,48 @@ export default function ReportesPage() {
                 ))}
               </Select>
 
-              {selectedActividad && (
-                actividadRows.length === 0 ? (
-                  <p className="text-sm text-gray-500 py-4">Sin registros de asistencia para esta actividad.</p>
+              {selectedActividad &&
+                (actividadRows.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">
+                    Sin registros de asistencia para esta actividad.
+                  </p>
                 ) : (
                   <>
                     <div className="overflow-x-auto rounded-lg border border-gray-200">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Participante</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Fecha</th>
-                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Asistencia</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                              Participante
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Fecha
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                              Asistencia
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {paginate(actividadRows, currentPageActividades).map((row, i) => (
-                            <tr key={i}>
-                              <td className="px-4 py-3 text-gray-900">
-                                {row.participante_nombre ?? row.nombre ?? "-"}
-                              </td>
-                              <td className="px-4 py-3 text-center text-gray-600">
-                                {row.fecha ?? "-"}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className={`px-2 py-1 rounded text-xs font-semibold ${row.presente ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                                  {row.presente ? "Presente" : "Ausente"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                          {paginate(actividadRows, currentPageActividades).map(
+                            (row, i) => (
+                              <tr key={i}>
+                                <td className="px-4 py-3 text-gray-900">
+                                  {row.participante_nombre ?? row.nombre ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-600">
+                                  {row.fecha ?? "-"}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span
+                                    className={`px-2 py-1 rounded text-xs font-semibold ${row.presente ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                                  >
+                                    {row.presente ? "Presente" : "Ausente"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ),
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -524,8 +624,7 @@ export default function ReportesPage() {
                       totalItems={actividadRows.length}
                     />
                   </>
-                )
-              )}
+                ))}
             </div>
           )}
         </div>

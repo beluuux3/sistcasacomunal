@@ -24,7 +24,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { useParticipantes } from "@/hooks/useParticipantes";
 import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
 import { listCasasRequest } from "@/lib/auth";
-import { getPDFContent } from "@/utils/generatePDFContent";
+import { generateParticipantePDFBlob } from "@/utils/generateParticipantePDF";
 
 export default function ParticipantesPage() {
   const { usuario } = useAuth();
@@ -413,9 +413,6 @@ export default function ParticipantesPage() {
   ) => {
     setIsGeneratingPDF(true);
     try {
-      // Dinámicamente importar html2pdf
-      const html2pdf = (await import("html2pdf.js")).default;
-
       // Obtener nombre de la casa comunal
       const casaInfo = casas.find(
         (c) =>
@@ -423,34 +420,11 @@ export default function ParticipantesPage() {
           c.id == participante.casa_comunal_id,
       ) || { nombre: "No Asignada" };
 
-      // Obtener el contenido HTML como string
-      const htmlContent = getPDFContent(participante, numeroRegistro, casaInfo);
-
-      // Crear un contenedor temporal visible en la página
-      const element = document.createElement("div");
-      element.innerHTML = htmlContent;
-      element.style.margin = "0";
-      element.style.padding = "0";
-      element.style.width = "21cm";
-
-      // Agregar al body
-      document.body.appendChild(element);
-
-      // Pequeño delay para asegurar que el DOM está actualizado
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      const opt = {
-        margin: 0,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 1.5, logging: false, useCORS: true },
-        jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
-      };
-
-      // Generar PDF
-      const pdf = await html2pdf().set(opt).from(element).output("blob");
-
-      // Remover el elemento del DOM inmediatamente
-      document.body.removeChild(element);
+      const pdf = await generateParticipantePDFBlob(
+        participante,
+        numeroRegistro,
+        casaInfo,
+      );
 
       // Crear blob URL y abrir en nueva ventana
       const blobUrl = URL.createObjectURL(pdf);
@@ -1104,9 +1078,6 @@ export default function ParticipantesPage() {
           </div>
         )}
       </Modal>
-
-      {/* Contenedor oculto para PDF */}
-      {/* Removido - Se usa getPDFContent directamente en generatePDF */}
     </div>
   );
 }

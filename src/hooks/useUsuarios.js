@@ -63,11 +63,16 @@ export function useUsuarios() {
   const getUsuariosFiltrados = () => {
     if (!filtro) return usuarios;
     const query = filtro.toLowerCase();
+    const phoneQuery = query.replace(/\D/g, "");
+
     return usuarios.filter(
       (usuario) =>
         usuario.nombre_completo.toLowerCase().includes(query) ||
         usuario.email.toLowerCase().includes(query) ||
-        usuario.ci.includes(query),
+        usuario.ci.toLowerCase().includes(query) ||
+        (usuario.telefono || "").toLowerCase().includes(query) ||
+        (phoneQuery.length > 0 &&
+          (usuario.telefono || "").replace(/\D/g, "").includes(phoneQuery)),
     );
   };
 

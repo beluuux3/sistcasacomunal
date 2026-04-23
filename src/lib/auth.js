@@ -511,7 +511,12 @@ export const getReporteActividadRequest = async (actividadId) => {
  * @param {File} foto
  * @returns {Promise<Object>}
  */
-export const checkInFacilitadorRequest = async (latitud, longitud, foto, casaComunalId) => {
+export const checkInFacilitadorRequest = async (
+  latitud,
+  longitud,
+  foto,
+  casaComunalId,
+) => {
   const formData = new FormData();
   formData.append("latitud", latitud);
   formData.append("longitud", longitud);
@@ -579,6 +584,33 @@ export const validarControlFacilitadorRequest = async (
       validado,
       observaciones,
     },
+  );
+  return response.data;
+};
+
+/**
+ * Crear registro manual de control de facilitador (admin)
+ * @param {Object} payload
+ * @returns {Promise<Object>}
+ */
+export const crearControlFacilitadorAdminRequest = async (payload) => {
+  const response = await api.post("/facilitadores/control", payload);
+  return response.data;
+};
+
+/**
+ * Editar registro manual de control de facilitador (admin)
+ * @param {number} controlId
+ * @param {Object} payload
+ * @returns {Promise<Object>}
+ */
+export const actualizarControlFacilitadorAdminRequest = async (
+  controlId,
+  payload,
+) => {
+  const response = await api.patch(
+    `/facilitadores/control/${controlId}`,
+    payload,
   );
   return response.data;
 };
