@@ -22,12 +22,32 @@ export function useParticipantes() {
       setIsLoading(true);
       setError("");
       try {
-        const data = await listParticipantesRequest(
-          0,
-          100,
-          filtro || null,
-          casaId,
-        );
+        let allData = [];
+        let skip = 0;
+        const limit = 100; // Límite seguro para el backend
+        let hasMore = true;
+
+        while (hasMore) {
+          const data = await listParticipantesRequest(
+            skip,
+            limit,
+            filtro || null,
+            casaId,
+          );
+
+          if (Array.isArray(data)) {
+            allData = [...allData, ...data];
+            if (data.length < limit) {
+              hasMore = false;
+            } else {
+              skip += limit;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const data = allData;
 
         // Validar que los datos sean de la casa seleccionada (seguridad)
         let participantesData = Array.isArray(data) ? data : [];
@@ -51,11 +71,20 @@ export function useParticipantes() {
 
         setParticipantes(participantesData);
       } catch (err) {
-        setError(
-          err.response?.data?.detail ||
-            err.message ||
-            "Error al cargar participantes",
-        );
+        let errorMsg = "Error al cargar participantes";
+        if (err.response?.data?.detail) {
+          const detail = err.response.data.detail;
+          if (Array.isArray(detail)) {
+            errorMsg = detail.map((e) => e.msg || JSON.stringify(e)).join("; ");
+          } else if (typeof detail === "string") {
+            errorMsg = detail;
+          } else {
+            errorMsg = JSON.stringify(detail);
+          }
+        } else if (err.message) {
+          errorMsg = err.message;
+        }
+        setError(errorMsg);
         setParticipantes([]);
       } finally {
         setIsLoading(false);
