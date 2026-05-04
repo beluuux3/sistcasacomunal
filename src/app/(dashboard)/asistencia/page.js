@@ -4,148 +4,109 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { Alert } from "@/components/ui/Alert";
-import { Modal } from "@/components/ui/Modal";
-import { Pagination } from "@/components/ui/Pagination";
 import { useAsistencia } from "@/hooks/useAsistencia";
 import { useTalleres } from "@/hooks/useTalleres";
 import { useAuth } from "@/context/AuthContext";
 import { useCasaSeleccionada } from "@/context/CasaSeleccionadaContext";
 import { getGrillaHorariosRequest } from "@/lib/auth";
 import api from "@/lib/api";
+import { generateCasaListaPDF } from "@/utils/generateCasaListaPDF";
 import {
   BookOpen,
-  Check,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle,
   XCircle,
   Printer,
+  FileText,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 
 export default function AsistenciaPage() {
-  const {
-    registrarAsistencia,
-    loadHistorial,
-    historial,
-    selectedTaller,
-    isLoading,
-    error,
-  } = useAsistencia();
+  const { registrarAsistencia, loadHistorial, historial, isLoading, error } =
+    useAsistencia();
 
   const { usuario } = useAuth();
   const { casaSeleccionada } = useCasaSeleccionada();
   const { talleres, loadTalleres } = useTalleres();
 
-  // Función para obtener fecha de hoy en formato YYYY-MM-DD (sin timezone issues)
   const getFechaHoy = () => {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const day = String(today.getDate()).padStart(2, "0");
-    const fechaLocal = `${year}-${month}-${day}`;
-    return fechaLocal;
+    return `${year}-${month}-${day}`;
   };
 
-  // Función para convertir fecha YYYY-MM-DD a objeto Date (evita timezone)
-  const parseLocalDate = (dateString) => {
-    const [year, month, day] = dateString.split("-").map(Number);
-    return new Date(year, month - 1, day);
-  };
-
-  // Función para obtener todas las fechas del mes que corresponden a un día específico de la semana
-  const getFechasPorDiaSemana = (diaDelaSemana, mes = null) => {
-    const hoy = new Date();
-    const mesActual = mes || hoy.getMonth();
-    const anio = hoy.getFullYear();
-    const fechas = [];
-
-    const primerDia = new Date(anio, mesActual, 1);
-    const ultimoDia = new Date(anio, mesActual + 1, 0);
-
-    for (
-      let d = new Date(primerDia);
-      d <= ultimoDia;
-      d.setDate(d.getDate() + 1)
-    ) {
-      if (d.getDay() === diaDelaSemana) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        fechas.push({
-          fecha: `${year}-${month}-${day}`,
-          dia: d.getDate(),
-        });
-      }
-    }
-
-    return fechas;
-  };
-
-  const [view, setView] = useState("registro"); // 'registro' o 'reporte'
+  const [view, setView] = useState("registro");
   const [selectedTallerForAsistencia, setSelectedTallerForAsistencia] =
     useState("");
   const [fecha, setFecha] = useState(getFechaHoy());
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [participantes, setParticipantes] = useState([]);
   const [asistencias, setAsistencias] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
   const [talleresDelFacilitador, setTalleresDelFacilitador] = useState([]);
   const [asistenciaYaRegistrada, setAsistenciaYaRegistrada] = useState(false);
+
   // Estados para admin
   const [casas, setCasas] = useState([]);
   const [adminSelectedCasa, setAdminSelectedCasa] = useState("");
   const [infoTallerAdmin, setInfoTallerAdmin] = useState(null);
   const [horariosData, setHorariosData] = useState([]);
-  const itemsPerPage = 5;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentCasaIndex, setCurrentCasaIndex] = useState(0);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Cargar talleres
   useEffect(() => {
     loadTalleres();
   }, []);
 
-  // Cargar casas para admin
   useEffect(() => {
     if (usuario?.rol === "Administrador") {
       const loadCasas = async () => {
         try {
           const response = await api.get("/casas");
-          const casasData = Array.isArray(response.data) ? response.data : [];
+          const casasData = (
+            Array.isArray(response.data) ? response.data : []
+          ).sort((a, b) => a.nombre.localeCompare(b.nombre));
           setCasas(casasData);
-          // Cargar horarios también
           const horariosResp = await getGrillaHorariosRequest();
           setHorariosData(horariosResp);
         } catch (err) {
-          // Error silencioso para no bloquear
+          // Error silencioso
         }
       };
       loadCasas();
     }
   }, [usuario?.rol]);
 
-  // Auto-seleccionar primera casa para admin cuando entra a reporte
+  const filteredCasas = casas.filter((casa) =>
+    casa.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+
   useEffect(() => {
     if (
       usuario?.rol === "Administrador" &&
       view === "reporte" &&
-      casas.length > 0 &&
-      !adminSelectedCasa
+      casas.length > 0
     ) {
-      handleAdminSelectCasa(casas[0].id.toString());
+      const casaId = casas[currentCasaIndex]?.id?.toString();
+      if (casaId) {
+        handleAdminSelectCasa(casaId);
+      }
     }
-  }, [usuario?.rol, view, casas, adminSelectedCasa]);
+  }, [usuario?.rol, view, casas, currentCasaIndex]);
 
-  // Auto-cambiar a vista reporte para admin
   useEffect(() => {
     if (usuario?.rol === "Administrador" && view === "registro") {
       setView("reporte");
     }
   }, [usuario?.rol]);
 
-  // Cargar historial cuando se abre reporte para facilitador con 1 taller
   useEffect(() => {
     if (
       view === "reporte" &&
@@ -156,93 +117,88 @@ export default function AsistenciaPage() {
     }
   }, [view, talleresDelFacilitador, usuario?.rol]);
 
-  // Función para obtener fechas únicas del historial ordenadas
   const getFechasDelHistorial = () => {
     if (!historial || historial.length === 0) return [];
-
     const fechasUnicas = [...new Set(historial.map((h) => h.fecha))];
-    const fechasOrdenadas = fechasUnicas.sort(
-      (a, b) => new Date(a) - new Date(b),
-    );
-
-    return fechasOrdenadas.map((fecha) => {
-      const [year, month, day] = fecha.split("-");
-      const fechaFormato = `${day}-${month}-${year}`;
-      const fechaLarga = new Date(fecha).toLocaleDateString("es-ES", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
+    return fechasUnicas
+      .sort((a, b) => new Date(a) - new Date(b))
+      .map((fecha) => {
+        const [year, month, day] = fecha.split("-");
+        return {
+          fecha,
+          fechaFormato: `${day}-${month}-${year}`,
+          fechaLarga: new Date(fecha).toLocaleDateString("es-ES", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }),
+        };
       });
-      return {
-        fecha,
-        dia: parseInt(day),
-        fechaFormato,
-        fechaLarga,
-      };
-    });
   };
 
-  // Función para imprimir/exportar el reporte
-  const handlePrint = () => {
+  const handlePrintAsistencia = () => {
     window.print();
   };
 
-  // Para facilitadores, filtrar talleres por casa actual Y cargar participantes
+  const handlePrintLista = async () => {
+    if (!adminSelectedCasa || !infoTallerAdmin || participantes.length === 0) {
+      alert("No hay datos suficientes para generar el PDF de la lista.");
+      return;
+    }
+    const casaActual = casas.find((c) => c.id.toString() === adminSelectedCasa);
+
+    try {
+      await generateCasaListaPDF(casaActual, infoTallerAdmin, participantes);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Hubo un error al generar el PDF. Por favor, intente de nuevo.");
+    }
+  };
+
   useEffect(() => {
     if (
       usuario?.rol === "Facilitador" &&
       casaSeleccionada?.id &&
       talleres.length > 0
     ) {
-      const loadTalleresyParticipantes = async () => {
+      const loadData = async () => {
         try {
           const horarios = await getGrillaHorariosRequest();
-          // Filtrar horarios para la casa seleccionada
           const horariosDelaCasa = horarios.filter(
             (h) =>
               h.casa_id === casaSeleccionada.id &&
               h.facilitador_id === usuario?.id,
           );
-          // Obtener IDs únicos de talleres
           const tallerIds = [
             ...new Set(horariosDelaCasa.map((h) => h.taller_id)),
           ];
-          // Filtrar talleres
           const talleresFiltered = talleres.filter((t) =>
             tallerIds.includes(t.id),
           );
           setTalleresDelFacilitador(talleresFiltered);
 
-          // Si hay solo 1 taller, auto-seleccionarlo
           if (talleresFiltered.length === 1) {
             setSelectedTallerForAsistencia(talleresFiltered[0].id.toString());
           }
 
-          // Cargar participantes de la casa
-          try {
-            const response = await api.get("/participantes", {
-              params: { skip: 0, limit: 100, casa_id: casaSeleccionada.id },
-            });
-            const participantesDeCasa = Array.isArray(response.data)
-              ? response.data
-              : [];
-            setParticipantes(participantesDeCasa);
-            // Inicializar asistencias en blanco
-            const asistenciasInit = {};
-            participantesDeCasa.forEach((p) => {
-              asistenciasInit[p.id] = false;
-            });
-            setAsistencias(asistenciasInit);
-          } catch (err) {
-            // Error silencioso
-          }
+          const response = await api.get("/participantes", {
+            params: { skip: 0, limit: 100, casa_id: casaSeleccionada.id },
+          });
+          const participantesDeCasa = Array.isArray(response.data)
+            ? response.data
+            : [];
+          setParticipantes(participantesDeCasa);
+          const asistenciasInit = {};
+          participantesDeCasa.forEach((p) => {
+            asistenciasInit[p.id] = false;
+          });
+          setAsistencias(asistenciasInit);
         } catch (err) {
           setTalleresDelFacilitador(talleres);
         }
       };
-      loadTalleresyParticipantes();
+      loadData();
     } else if (usuario?.rol !== "Facilitador") {
-      // Admin ve todos los talleres
       setTalleresDelFacilitador(talleres);
     }
   }, [casaSeleccionada?.id, talleres, usuario?.rol]);
@@ -254,16 +210,6 @@ export default function AsistenciaPage() {
     }
   }, [successMessage]);
 
-  // Auto-cargar participantes cuando se selecciona un taller
-  useEffect(() => {
-    // Los participantes ya están cargados en el useEffect anterior
-    // Este useEffect solo es para admin que selecciona taller
-    if (selectedTallerForAsistencia && usuario?.rol !== "Facilitador") {
-      // Solo para admin o múltiples talleres
-    }
-  }, [selectedTallerForAsistencia, usuario?.rol]);
-
-  // Handler para admin seleccionar casa
   const handleAdminSelectCasa = async (casaId) => {
     if (!casaId) {
       setAdminSelectedCasa("");
@@ -273,10 +219,15 @@ export default function AsistenciaPage() {
       return;
     }
 
+    const newIndex = casas.findIndex((c) => c.id.toString() === casaId);
+    if (newIndex !== -1) {
+      setCurrentCasaIndex(newIndex);
+    }
+
     setAdminSelectedCasa(casaId);
+    setIsDropdownOpen(false); // Cierra el dropdown al seleccionar
 
     try {
-      // Obtener información del taller de esta casa
       const casaInt = parseInt(casaId);
       const horariosDelaCasa = horariosData.filter(
         (h) => h.casa_id === casaInt,
@@ -284,7 +235,6 @@ export default function AsistenciaPage() {
 
       if (horariosDelaCasa.length > 0) {
         const horario = horariosDelaCasa[0];
-        // Obtener horario de diferentes formatos posibles
         const horaFormato =
           horario.hora_inicio && horario.hora_fin
             ? `${horario.hora_inicio} - ${horario.hora_fin}`
@@ -297,7 +247,6 @@ export default function AsistenciaPage() {
           tallerId: horario.taller_id,
         });
 
-        // Cargar participantes de la casa
         const response = await api.get("/participantes", {
           params: { skip: 0, limit: 100, casa_id: casaInt },
         });
@@ -307,38 +256,27 @@ export default function AsistenciaPage() {
         setParticipantes(participantesDeCasa);
         setAsistencias({});
 
-        // Cargar historial si estamos en vista reporte
         if (view === "reporte") {
           await loadHistorial(horario.taller_id);
         }
+      } else {
+        setInfoTallerAdmin(null);
+        setParticipantes([]);
       }
     } catch (err) {
       setInfoTallerAdmin(null);
+      setParticipantes([]);
     }
   };
 
-  const handleSelectTaller = async (tallerId) => {
-    if (!tallerId) {
-      setParticipantes([]);
-      setAsistencias({});
-      return;
-    }
+  const handleNextCasa = () => {
+    setCurrentCasaIndex((prevIndex) =>
+      Math.min(prevIndex + 1, casas.length - 1),
+    );
+  };
 
-    setSelectedTallerForAsistencia(tallerId);
-    setFormError("");
-
-    // Cargar participantes del taller
-    try {
-      const participantesData = await getTallerParticipantesRequest(
-        parseInt(tallerId),
-      );
-      setParticipantes(
-        Array.isArray(participantesData) ? participantesData : [],
-      );
-      setAsistencias({}); // Limpiar asistencias previas
-    } catch (err) {
-      setParticipantes([]);
-    }
+  const handlePrevCasa = () => {
+    setCurrentCasaIndex((prevIndex) => Math.max(prevIndex - 1, 0));
   };
 
   const handleToggleAsistencia = (participanteId) => {
@@ -373,7 +311,6 @@ export default function AsistenciaPage() {
       );
       setSuccessMessage("Asistencia registrada correctamente");
       setAsistencias({});
-      // Solo limpiar selección si hay múltiples talleres; con 1 taller no hay que volver a seleccionar
       if (talleresDelFacilitador.length !== 1) {
         setSelectedTallerForAsistencia("");
       }
@@ -382,17 +319,8 @@ export default function AsistenciaPage() {
     }
   };
 
-  const handleViewHistorial = async (tallerId) => {
-    if (tallerId) {
-      await loadHistorial(parseInt(tallerId));
-      setView("historial");
-      setIsModalOpen(true);
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
           Asistencia
@@ -402,14 +330,12 @@ export default function AsistenciaPage() {
         </p>
       </div>
 
-      {/* Messages */}
       {error && <Alert type="error" title="Error" message={error} />}
       {successMessage && (
         <Alert type="success" title="Éxito" message={successMessage} />
       )}
       {formError && <Alert type="error" title="Error" message={formError} />}
 
-      {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
         {usuario?.rol === "Facilitador" && (
           <Button
@@ -427,7 +353,6 @@ export default function AsistenciaPage() {
         </Button>
       </div>
 
-      {/* Registro View */}
       {view === "registro" && (
         <Card>
           <div className="space-y-4">
@@ -471,202 +396,99 @@ export default function AsistenciaPage() {
                   <Alert
                     type="warning"
                     title="Asistencia ya registrada"
-                    message="La asistencia para esta fecha ya ha sido registrada. No puedes volver a registrar."
+                    message="La asistencia para esta fecha ya ha sido registrada."
                   />
                 )}
 
-                <div className="space-y-4">
-                  {/* Tabla de participantes estilo imagen */}
-                  {participantes.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-semibold text-lg text-slate-900">
-                        Participantes ({participantes.length})
-                      </h3>
-                      <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-100 border-b border-gray-200 sticky top-0">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-700 min-w-[200px]">
-                                Nombre
-                              </th>
-                              <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">
-                                Asistió
-                              </th>
+                {participantes.length > 0 ? (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-slate-900">
+                      Participantes ({participantes.length})
+                    </h3>
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 border-b border-gray-200 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 min-w-[200px]">
+                              Nombre
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">
+                              Asistió
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {participantes.map((p) => (
+                            <tr key={p.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-gray-900">
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {p.nombres} {p.apellidos}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    CI: {p.ci}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <label className="inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={asistencias[p.id] || false}
+                                    onChange={() =>
+                                      handleToggleAsistencia(p.id)
+                                    }
+                                    className="w-5 h-5 cursor-pointer accent-green-600"
+                                  />
+                                </label>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {participantes.map((participante) => (
-                              <tr
-                                key={participante.id}
-                                className="hover:bg-gray-50"
-                              >
-                                <td className="px-4 py-3 text-gray-900">
-                                  <div>
-                                    <p className="font-medium text-sm">
-                                      {participante.nombres}{" "}
-                                      {participante.apellidos}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                      CI: {participante.ci}
-                                    </p>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <label className="inline-flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={
-                                        asistencias[participante.id] || false
-                                      }
-                                      onChange={() =>
-                                        handleToggleAsistencia(participante.id)
-                                      }
-                                      className="w-5 h-5 cursor-pointer accent-green-600"
-                                    />
-                                  </label>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Resumen de asistencia */}
-                      <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                        <p className="text-sm text-green-900 font-medium">
-                          ✅ Presentes:{" "}
-                          <span className="text-lg font-bold">
-                            {Object.values(asistencias).filter(Boolean).length}
-                          </span>{" "}
-                          de{" "}
-                          <span className="text-lg font-bold">
-                            {participantes.length}
-                          </span>
-                        </p>
-                      </div>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  )}
-
-                  {participantes.length === 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                      <p className="text-sm text-yellow-800">
-                        No hay participantes registrados en esta casa.
+                    <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                      <p className="text-sm text-green-900 font-medium">
+                        ✅ Presentes:{" "}
+                        <span className="text-lg font-bold">
+                          {Object.values(asistencias).filter(Boolean).length}
+                        </span>{" "}
+                        de{" "}
+                        <span className="text-lg font-bold">
+                          {participantes.length}
+                        </span>
                       </p>
                     </div>
-                  )}
-
-                  <Button
-                    variant="primary"
-                    onClick={handleRegistrarAsistencia}
-                    disabled={
-                      isLoading ||
-                      participantes.length === 0 ||
-                      asistenciaYaRegistrada
-                    }
-                  >
-                    {isLoading ? "Registrando..." : "Registrar Asistencia"}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              /* Facilitador con múltiples talleres */
-              <div>
-                {selectedTallerForAsistencia && (
-                  <div className="space-y-4 mt-4">
-                    {/* Tabla de participantes */}
-                    {participantes.length > 0 && (
-                      <div className="space-y-3">
-                        <h3 className="font-semibold text-lg text-slate-900">
-                          Participantes ({participantes.length})
-                        </h3>
-                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-100 border-b border-gray-200">
-                              <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">
-                                  Participante
-                                </th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-700">
-                                  Asistió
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {participantes.map((participante) => (
-                                <tr
-                                  key={participante.id}
-                                  className="hover:bg-gray-50"
-                                >
-                                  <td className="px-4 py-3 text-gray-900">
-                                    <div>
-                                      <p className="font-medium">
-                                        {participante.nombres}{" "}
-                                        {participante.apellidos}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        CI: {participante.ci}
-                                      </p>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3 text-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={
-                                        asistencias[participante.id] || false
-                                      }
-                                      onChange={() =>
-                                        handleToggleAsistencia(participante.id)
-                                      }
-                                      className="w-5 h-5 cursor-pointer accent-blue-600"
-                                    />
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Resumen de asistencia */}
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                          <p className="text-sm text-blue-900">
-                            <strong>Presentes:</strong>{" "}
-                            {Object.values(asistencias).filter(Boolean).length}{" "}
-                            de {participantes.length}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {participantes.length === 0 && (
-                      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          No hay participantes registrados en este taller.
-                        </p>
-                      </div>
-                    )}
-
                     <Button
                       variant="primary"
                       onClick={handleRegistrarAsistencia}
-                      disabled={isLoading || participantes.length === 0}
+                      disabled={isLoading || asistenciaYaRegistrada}
                     >
                       {isLoading ? "Registrando..." : "Registrar Asistencia"}
                     </Button>
                   </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      No hay participantes registrados en esta casa.
+                    </p>
+                  </div>
                 )}
+              </div>
+            ) : (
+              <div>
+                {/* Facilitador con múltiples talleres (UI simplificada) */}
               </div>
             )}
           </div>
         </Card>
       )}
 
-      {/* Reporte View */}
       {view === "reporte" && (
         <Card>
           <div className="space-y-4">
             {usuario?.rol === "Facilitador" &&
             talleresDelFacilitador.length === 1 ? (
-              // REPORTE PARA FACILITADOR CON 1 TALLER
               <div className="space-y-4">
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <p className="text-sm text-gray-600 mb-2">
@@ -679,14 +501,12 @@ export default function AsistenciaPage() {
                     Casa: <strong>{casaSeleccionada?.nombre}</strong>
                   </p>
                 </div>
-
-                {/* Botón de impresión y tabla dinámica con fechas como columnas */}
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Detalles de Asistencia
                   </h3>
                   <Button
-                    onClick={handlePrint}
+                    onClick={handlePrintAsistencia}
                     variant="secondary"
                     className="flex items-center gap-2"
                   >
@@ -694,7 +514,6 @@ export default function AsistenciaPage() {
                     Imprimir / PDF
                   </Button>
                 </div>
-
                 {participantes.length > 0 && historial.length > 0 ? (
                   <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
                     <table className="w-full text-sm">
@@ -703,116 +522,138 @@ export default function AsistenciaPage() {
                           <th className="px-4 py-3 text-left font-semibold text-gray-700 min-w-[180px]">
                             Nombre
                           </th>
-                          {(() => {
-                            const fechas = getFechasDelHistorial();
-                            return fechas.map((f) => (
-                              <th
-                                key={f.fecha}
-                                className="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap min-w-[80px] text-xs"
-                                title={f.fechaLarga}
-                              >
-                                {f.fechaFormato}
-                              </th>
-                            ));
-                          })()}
+                          {getFechasDelHistorial().map((f) => (
+                            <th
+                              key={f.fecha}
+                              className="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap min-w-[80px] text-xs"
+                              title={f.fechaLarga}
+                            >
+                              {f.fechaFormato}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {participantes.map((participante) => {
-                          // Obtener asistencias de este participante
-                          const asistenciasParticipante = historial.filter(
-                            (h) => h.participante_id === participante.id,
-                          );
-
-                          return (
-                            <tr
-                              key={participante.id}
-                              className="hover:bg-gray-50"
-                            >
-                              <td className="px-4 py-3 text-gray-900 font-medium">
-                                <div>
-                                  <p className="text-sm">
-                                    {participante.nombres}{" "}
-                                    {participante.apellidos}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    {participante.ci}
-                                  </p>
-                                </div>
-                              </td>
-                              {(() => {
-                                const fechas = getFechasDelHistorial();
-                                return fechas.map((f) => {
-                                  const asistencia =
-                                    asistenciasParticipante.find(
-                                      (a) => a.fecha === f.fecha,
-                                    );
-                                  return (
-                                    <td
-                                      key={f.fecha}
-                                      className="px-2 py-3 text-center"
-                                    >
-                                      {asistencia ? (
-                                        asistencia.presente ? (
-                                          <CheckCircle
-                                            size={20}
-                                            className="inline text-green-600"
-                                            title="Asistió"
-                                          />
-                                        ) : (
-                                          <XCircle
-                                            size={20}
-                                            className="inline text-red-600"
-                                            title="Faltó"
-                                          />
-                                        )
-                                      ) : null}
-                                    </td>
-                                  );
-                                });
-                              })()}
-                            </tr>
-                          );
-                        })}
+                        {participantes.map((p) => (
+                          <tr key={p.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-900 font-medium">
+                              <div>
+                                <p className="text-sm">
+                                  {p.nombres} {p.apellidos}
+                                </p>
+                                <p className="text-xs text-gray-500">{p.ci}</p>
+                              </div>
+                            </td>
+                            {getFechasDelHistorial().map((f) => {
+                              const asistencia = historial.find(
+                                (a) =>
+                                  a.participante_id === p.id &&
+                                  a.fecha === f.fecha,
+                              );
+                              return (
+                                <td
+                                  key={f.fecha}
+                                  className="px-2 py-3 text-center"
+                                >
+                                  {asistencia ? (
+                                    asistencia.presente ? (
+                                      <CheckCircle
+                                        size={20}
+                                        className="inline text-green-600"
+                                      />
+                                    ) : (
+                                      <XCircle
+                                        size={20}
+                                        className="inline text-red-600"
+                                      />
+                                    )
+                                  ) : null}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
-                  </div>
-                ) : participantes.length === 0 ? (
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
-                    <p className="text-sm text-yellow-800">
-                      No hay participantes registrados en esta casa.
-                    </p>
                   </div>
                 ) : (
                   <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
                     <p className="text-sm text-gray-600">
-                      No hay registros de asistencia aún.
+                      {participantes.length === 0
+                        ? "No hay participantes."
+                        : "No hay registros de asistencia."}
                     </p>
                   </div>
                 )}
               </div>
             ) : (
-              // REPORTE PARA ADMIN (CON SELECTOR DE CASA)
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Seleccionar Casa Comunal
-                  </label>
-                  <select
-                    value={adminSelectedCasa}
-                    onChange={(e) => handleAdminSelectCasa(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                <div className="flex items-center justify-between gap-4">
+                  <Button
+                    onClick={handlePrevCasa}
+                    disabled={currentCasaIndex === 0}
+                    variant="secondary"
                   >
-                    <option value="">Seleccionar casa para ver reporte</option>
-                    {casas.map((casa) => (
-                      <option key={casa.id} value={casa.id}>
-                        {casa.nombre}
-                      </option>
-                    ))}
-                  </select>
+                    <ChevronLeft size={20} />
+                    Anterior
+                  </Button>
+
+                  <div className="relative text-center flex-grow">
+                    <button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="flex items-center justify-center gap-2 w-full"
+                    >
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Casa Comunal
+                        </label>
+                        <p className="font-bold text-lg text-slate-900">
+                          {casas[currentCasaIndex]?.nombre || "Cargando..."}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        size={20}
+                        className={`transition-transform ${
+                          isDropdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isDropdownOpen && (
+                      <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                        <div className="p-2">
+                          <SearchInput
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Buscar casa..."
+                          />
+                        </div>
+                        <ul className="max-h-60 overflow-y-auto">
+                          {filteredCasas.map((casa) => (
+                            <li
+                              key={casa.id}
+                              onClick={() =>
+                                handleAdminSelectCasa(casa.id.toString())
+                              }
+                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-black"
+                            >
+                              {casa.nombre}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={handleNextCasa}
+                    disabled={currentCasaIndex === casas.length - 1}
+                    variant="secondary"
+                  >
+                    Siguiente
+                    <ChevronRight size={20} />
+                  </Button>
                 </div>
 
-                {/* Card de información del taller */}
                 {adminSelectedCasa && infoTallerAdmin && (
                   <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200">
                     <div className="space-y-3">
@@ -840,31 +681,44 @@ export default function AsistenciaPage() {
                   </Card>
                 )}
 
-                {adminSelectedCasa && participantes.length > 0 && (
+                {adminSelectedCasa && (
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-wrap justify-between items-center gap-4">
                       <h3 className="text-lg font-semibold text-gray-900">
                         Detalles de Asistencia
                       </h3>
-                      <Button
-                        onClick={handlePrint}
-                        variant="secondary"
-                        className="flex items-center gap-2"
-                      >
-                        <Printer size={18} />
-                        Imprimir / PDF
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handlePrintLista}
+                          variant="secondary"
+                          className="flex items-center gap-2"
+                          disabled={participantes.length === 0}
+                        >
+                          <Users size={18} />
+                          PDF Lista
+                        </Button>
+                        <Button
+                          onClick={handlePrintAsistencia}
+                          variant="secondary"
+                          className="flex items-center gap-2"
+                          disabled={
+                            participantes.length === 0 || historial.length === 0
+                          }
+                        >
+                          <FileText size={18} />
+                          PDF Asistencia
+                        </Button>
+                      </div>
                     </div>
-                    <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-100 border-b border-gray-200 sticky top-0">
-                          <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 min-w-[180px]">
-                              Nombre
-                            </th>
-                            {(() => {
-                              const fechas = getFechasDelHistorial();
-                              return fechas.map((f) => (
+                    {participantes.length > 0 && historial.length > 0 ? (
+                      <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-100 border-b border-gray-200 sticky top-0">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-700 min-w-[180px]">
+                                Nombre
+                              </th>
+                              {getFechasDelHistorial().map((f) => (
                                 <th
                                   key={f.fecha}
                                   className="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap min-w-[80px] text-xs"
@@ -872,77 +726,63 @@ export default function AsistenciaPage() {
                                 >
                                   {f.fechaFormato}
                                 </th>
-                              ));
-                            })()}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {participantes.map((participante) => {
-                            const asistenciasParticipante = historial.filter(
-                              (h) => h.participante_id === participante.id,
-                            );
-
-                            return (
-                              <tr
-                                key={participante.id}
-                                className="hover:bg-gray-50"
-                              >
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {participantes.map((p) => (
+                              <tr key={p.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-3 text-gray-900 font-medium">
                                   <div>
                                     <p className="text-sm">
-                                      {participante.nombres}{" "}
-                                      {participante.apellidos}
+                                      {p.nombres} {p.apellidos}
                                     </p>
                                     <p className="text-xs text-gray-500">
-                                      {participante.ci}
+                                      {p.ci}
                                     </p>
                                   </div>
                                 </td>
-                                {(() => {
-                                  const fechas = getFechasDelHistorial();
-                                  return fechas.map((f) => {
-                                    const asistencia =
-                                      asistenciasParticipante.find(
-                                        (a) => a.fecha === f.fecha,
-                                      );
-                                    return (
-                                      <td
-                                        key={f.fecha}
-                                        className="px-2 py-3 text-center"
-                                      >
-                                        {asistencia ? (
-                                          asistencia.presente ? (
-                                            <CheckCircle
-                                              size={20}
-                                              className="inline text-green-600"
-                                              title="Asistió"
-                                            />
-                                          ) : (
-                                            <XCircle
-                                              size={20}
-                                              className="inline text-red-600"
-                                              title="Faltó"
-                                            />
-                                          )
-                                        ) : null}
-                                      </td>
-                                    );
-                                  });
-                                })()}
+                                {getFechasDelHistorial().map((f) => {
+                                  const asistencia = historial.find(
+                                    (a) =>
+                                      a.participante_id === p.id &&
+                                      a.fecha === f.fecha,
+                                  );
+                                  return (
+                                    <td
+                                      key={f.fecha}
+                                      className="px-2 py-3 text-center"
+                                    >
+                                      {asistencia ? (
+                                        asistencia.presente ? (
+                                          <CheckCircle
+                                            size={20}
+                                            className="inline text-green-600"
+                                          />
+                                        ) : (
+                                          <XCircle
+                                            size={20}
+                                            className="inline text-red-600"
+                                          />
+                                        )
+                                      ) : null}
+                                    </td>
+                                  );
+                                })}
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {adminSelectedCasa && participantes.length === 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
-                    <p className="text-sm text-yellow-800">
-                      No hay participantes en esta casa comunal.
-                    </p>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
+                        <p className="text-sm text-yellow-800">
+                          {participantes.length === 0
+                            ? "No hay participantes en esta casa."
+                            : "No hay registros de asistencia para generar el reporte."}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
