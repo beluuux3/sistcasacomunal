@@ -17,6 +17,7 @@ import {
   listCasasRequest,
   getGrillaHorariosRequest,
   listarActividadesFacilitadorRequest,
+  registrarActividadFacilitadorRequest,
   editarActividadFacilitadorRequest,
   eliminarActividadFacilitadorRequest,
   listGestionesRequest,
@@ -49,7 +50,14 @@ const MAP_TO_UI = {
   "Planificacion": "Planificación"
 };
 
-const TIPOS_ACTIVIDAD_UI = ["Asistencia a actividades", "Elaboración de material", "Reuniones", "Otro"];
+const MAP_TO_BACKEND = {
+  "Asistencia Actividades": "Taller",
+  "Elaboración de material": "Elaboracion de Material",
+  "Asistencia a la casa comunal": "Otro",
+  "Reuniones": "Reunion",
+};
+
+const TIPOS_ACTIVIDAD_UI = ["Asistencia Actividades", "Elaboración de material", "Asistencia a la casa comunal"];
 
 const EMPTY_CONTROL_FORM = {
   facilitador_id: "",
@@ -79,9 +87,7 @@ const formatTimeDisplay = (value) => {
   if (!value) return "-";
   const raw = String(value).trim();
 
-  // Extraer solo HH:mm de cualquier formato
-  // Funciona con: "14:30:00", "18:35:37.462761", "18:35:37.462761Z", "14:30:00Z", etc.
-  // Maneja formatos: HH:mm:ss, HH:mm:ss.SSSSSS, con o sin Z/offset.
+
   const timeOnly = raw.includes("T") ? raw.split("T")[1] : raw;
   const match = timeOnly.match(
     /^(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/,
@@ -195,7 +201,8 @@ export default function ControlFacilitadoresPage() {
   const [actModalMode, setActModalMode] = useState("edit");
   const [actForm, setActForm] = useState({
     id: "",
-    tipo_actividad: "Elaboracion de Material",
+    facilitador_id: "",
+    tipo_actividad: "Elaboración de material",
     fecha: "",
     hora_inicio: "",
     hora_fin: "",
@@ -530,7 +537,7 @@ export default function ControlFacilitadoresPage() {
 
     doc.setFontSize(11);
     doc.setTextColor(52, 73, 94);
-    
+
     const drawBoldText = (label, value, x, y) => {
       doc.setFont("helvetica", "bold");
       doc.text(label, x, y);
@@ -613,40 +620,78 @@ export default function ControlFacilitadoresPage() {
     setActModalMode("edit");
     setActForm({
       id: reg.original.id,
-      tipo_actividad: reg.original.tipo_actividad || reg.tipo,
+      facilitador_id: reg.original.facilitador_id || "",
+      tipo_actividad: MAP_TO_UI[reg.original.tipo_actividad] || reg.original.tipo_actividad || "Elaboración de material",
       fecha: reg.original.fecha || "",
-      hora_inicio: reg.original.hora_inicio || "",
-      hora_fin: reg.original.hora_fin || "",
+      hora_inicio: reg.original.hora_inicio ? String(reg.original.hora_inicio).slice(0, 5) : "",
+      hora_fin: reg.original.hora_fin ? String(reg.original.hora_fin).slice(0, 5) : "",
       descripcion: reg.original.descripcion || "",
-      casa_comunal_id: reg.original.casa_comunal_id || "",
+      casa_comunal_id: reg.original.casa_comunal_id ? String(reg.original.casa_comunal_id) : "",
+    });
+    setControlFormError("");
+    setShowActModal(true);
+  };
+
+  const openCreateActividad = () => {
+    setActModalMode("create");
+    const facId = selectedFacilitador ? String(selectedFacilitador) : "";
+    const casas = facId ? getCasasByFacilitador(facId) : [];
+    const casaId = casas[0]?.id ? String(casas[0].id) : "";
+    setActForm({
+      id: "",
+      facilitador_id: facId,
+      tipo_actividad: "Elaboración de material",
+      fecha: getTodayBolivia(),
+      hora_inicio: "",
+      hora_fin: "",
+      descripcion: "",
+      casa_comunal_id: casaId,
     });
     setControlFormError("");
     setShowActModal(true);
   };
 
   const handleSaveActividad = async () => {
+    if (!actForm.fecha || !actForm.hora_inicio || !actForm.descripcion.trim()) {
+      setControlFormError("Fecha, hora inicio y descripción son obligatorios.");
+      return;
+    }
+    if (!actForm.facilitador_id && actModalMode === "create") {
+      setControlFormError("Debes seleccionar un facilitador.");
+      return;
+    }
     setIsSavingAct(true);
     setControlFormError("");
     try {
+      const payload = {
+        fecha: actForm.fecha,
+        hora_inicio: actForm.hora_inicio.length === 5 ? `${actForm.hora_inicio}:00` : actForm.hora_inicio,
+        hora_fin: actForm.hora_fin ? (actForm.hora_fin.length === 5 ? `${actForm.hora_fin}:00` : actForm.hora_fin) : null,
+        tipo_actividad: MAP_TO_BACKEND[actForm.tipo_actividad] || actForm.tipo_actividad,
+        descripcion: actForm.descripcion,
+        casa_comunal_id: actForm.casa_comunal_id ? Number(actForm.casa_comunal_id) : null,
+        ...(actForm.facilitador_id ? { facilitador_id: Number(actForm.facilitador_id) } : {}),
+      };
+
       if (actModalMode === "edit") {
-        await editarActividadFacilitadorRequest(actForm.id, {
-          tipo_actividad: actForm.tipo_actividad,
-          fecha: actForm.fecha,
-          hora_inicio: actForm.hora_inicio,
-          hora_fin: actForm.hora_fin || null,
-          descripcion: actForm.descripcion,
-          casa_comunal_id: actForm.casa_comunal_id ? parseInt(actForm.casa_comunal_id) : undefined,
-        });
+        await editarActividadFacilitadorRequest(actForm.id, payload);
         setSuccessMessage("Actividad actualizada correctamente.");
+      } else {
+        await registrarActividadFacilitadorRequest(payload);
+        setSuccessMessage("Actividad registrada correctamente.");
       }
       setShowActModal(false);
-      
+
       listarActividadesFacilitadorRequest().then(data => {
         setActividades(Array.isArray(data) ? data : []);
       }).catch(() => { });
 
     } catch (err) {
-      setControlFormError(err.message || "Error al guardar actividad");
+      const serverMsg = err?.response?.data?.detail || err?.response?.data?.message || err.message;
+      const displayMsg = Array.isArray(serverMsg)
+        ? serverMsg.map(e => `${e.loc?.join && e.loc.join('.')}: ${e.msg}`).join(', ')
+        : (serverMsg || "Error al guardar actividad");
+      setControlFormError(typeof displayMsg === "string" ? displayMsg : JSON.stringify(displayMsg));
     } finally {
       setIsSavingAct(false);
     }
@@ -660,7 +705,7 @@ export default function ControlFacilitadoresPage() {
       await eliminarActividadFacilitadorRequest(confirmDeleteId);
       setSuccessMessage("Actividad eliminada correctamente.");
       setConfirmDeleteId(null);
-      
+
       listarActividadesFacilitadorRequest().then(data => {
         setActividades(Array.isArray(data) ? data : []);
       }).catch(() => { });
@@ -682,7 +727,7 @@ export default function ControlFacilitadoresPage() {
       ...EMPTY_CONTROL_FORM,
       facilitador_id: facilitatorId,
       casa_comunal_id: casaId,
-      fecha: selectedFecha || getTodayBolivia(),
+      fecha: getTodayBolivia(),
       latitud_entrada:
         casasAsignadas[0]?.latitud !== undefined &&
           casasAsignadas[0]?.latitud !== null
@@ -834,6 +879,17 @@ export default function ControlFacilitadoresPage() {
           </p>
         </div>
 
+        <div title="Función en desarrollo — requiere actualización del backend para registrar en nombre del facilitador">
+          <Button
+            variant="secondary"
+            disabled
+            className="gap-2 self-start sm:self-auto opacity-50 cursor-not-allowed"
+          >
+            <Plus size={18} />
+            Registrar Actividad
+          </Button>
+        </div>
+
         <Button
           variant="primary"
           onClick={openCreateControlModal}
@@ -863,7 +919,7 @@ export default function ControlFacilitadoresPage() {
               setFilterCasa(""); // Resetear casa si cambia facilitador
             }}
           >
-            <option value="">Todos los facilitadores</option>
+
             {facilitadores.map((fac) => (
               <option key={fac.id} value={fac.id}>
                 {fac.nombre_completo || fac.nombre}
@@ -1443,17 +1499,54 @@ export default function ControlFacilitadoresPage() {
         </Modal>
       )}
 
-      {/* Modal editar actividad */}
+      {/* Modal crear / editar actividad */}
       <Modal
         isOpen={showActModal}
         onClose={() => setShowActModal(false)}
-        title="Editar Actividad"
+        title={actModalMode === "create" ? "Registrar Actividad" : "Editar Actividad"}
         maxWidth="max-w-lg"
       >
         <div className="space-y-4">
           {controlFormError && <Alert type="error" title="Error" message={controlFormError} />}
+
+          {/* Facilitador — editable solo en modo crear */}
+          <Select
+            label="Facilitador"
+            value={actForm.facilitador_id}
+            onChange={(e) => {
+              const facId = e.target.value;
+              const casas = getCasasByFacilitador(facId);
+              const casaId = casas[0]?.id ? String(casas[0].id) : "";
+              setActForm({ ...actForm, facilitador_id: facId, casa_comunal_id: casaId });
+            }}
+            required
+            disabled={actModalMode === "edit"}
+          >
+
+            {facilitadores.map((fac) => (
+              <option key={fac.id} value={fac.id}>
+                {fac.nombre_completo || fac.nombre}
+              </option>
+            ))}
+          </Select>
+
+          {/* Casa Comunal */}
+          {actForm.facilitador_id && (
+            <Select
+              label="Casa Comunal"
+              value={actForm.casa_comunal_id}
+              onChange={(e) => setActForm({ ...actForm, casa_comunal_id: e.target.value })}
+            >
+
+              {getCasasByFacilitador(actForm.facilitador_id).map((casa) => (
+                <option key={casa.id} value={casa.id}>{casa.nombre}</option>
+              ))}
+            </Select>
+          )}
+
           <Input label="Fecha" type="date" value={actForm.fecha}
             onChange={(e) => setActForm({ ...actForm, fecha: e.target.value })} required />
+
           <Select label="Tipo de Actividad" value={actForm.tipo_actividad}
             onChange={(e) => setActForm({ ...actForm, tipo_actividad: e.target.value })} required>
             {TIPOS_ACTIVIDAD_UI.map((t) => (
@@ -1474,7 +1567,7 @@ export default function ControlFacilitadoresPage() {
             <textarea
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               rows="3"
-              placeholder="Descripción..."
+              placeholder="Descripción de la actividad..."
               value={actForm.descripcion}
               onChange={(e) => setActForm({ ...actForm, descripcion: e.target.value })}
             />
@@ -1482,7 +1575,7 @@ export default function ControlFacilitadoresPage() {
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={() => setShowActModal(false)}>Cancelar</Button>
             <Button variant="primary" onClick={handleSaveActividad} disabled={isSavingAct}>
-              {isSavingAct ? "Guardando..." : "Actualizar"}
+              {isSavingAct ? "Guardando..." : actModalMode === "create" ? "Registrar" : "Actualizar"}
             </Button>
           </div>
         </div>
