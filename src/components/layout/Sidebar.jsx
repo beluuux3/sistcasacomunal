@@ -27,6 +27,7 @@ import {
   Award,
   UserCheck,
   MapPin,
+  ClipboardList,
 } from "lucide-react";
 
 export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
@@ -83,13 +84,13 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
       show: isAdmin,
     },
     {
-      label: "Asistencia",
+      label: "Asistencia Participantes",
       href: "/asistencia",
       icon: CheckSquare,
       show: isAdmin || (isFacilitador && casaSeleccionada),
     },
     {
-      label: "Evaluaciones",
+      label: "Evaluaciones Participantes",
       href: "/evaluaciones",
       icon: FileText,
       show: isAdmin || (isFacilitador && casaSeleccionada),
@@ -112,6 +113,12 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
       href: "/control-facilitadores",
       icon: UserCheck,
       show: isAdmin,
+    },
+    {
+      label: "Control Horas Facilitador",
+      href: "/control-horas",
+      icon: ClipboardList,
+      show: isFacilitador && casaSeleccionada,
     },
     {
       label: "Reportes",
@@ -147,9 +154,8 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:relative top-0 left-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-50 lg:z-auto ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } ${isCollapsed ? "w-20" : "w-64"}`}
+        className={`fixed lg:relative top-0 left-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-50 lg:z-auto ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          } ${isCollapsed ? "w-20" : "w-64"}`}
       >
         {/* Header */}
         <div className="h-16 flex items-center px-6 border-b border-gray-200 lg:hidden">
@@ -210,9 +216,8 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
                   );
                   if (casa) selectCasa(casa);
                 }}
-                className={`w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  isCollapsed ? "hidden" : ""
-                }`}
+                className={`w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${isCollapsed ? "hidden" : ""
+                  }`}
               >
                 <option value="">-- Selecciona una casa --</option>
                 {casasDelFacilitador.map((casa) => (
@@ -237,11 +242,10 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
                     <Link
                       href={item.href}
                       onClick={onClose}
-                      className={`flex items-center gap-3 ${isCollapsed ? "justify-center p-2" : "px-4 py-2"} rounded-lg transition-colors relative group ${
-                        isActive(item.href)
-                          ? "bg-blue-50 text-blue-600 font-medium"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
+                      className={`flex items-center gap-3 ${isCollapsed ? "justify-center p-2" : "px-4 py-2"} rounded-lg transition-colors relative group ${isActive(item.href)
+                        ? "bg-blue-50 text-blue-600 font-medium"
+                        : "text-gray-700 hover:bg-gray-100"
+                        }`}
                       title={isCollapsed ? item.label : ""}
                     >
                       <item.icon size={20} />
@@ -356,11 +360,10 @@ export function Sidebar({ isOpen = true, onClose, isCollapsed = false }) {
                   selectCasa(casa);
                   setShowCasaModal(false);
                 }}
-                className={`w-full p-3 rounded-lg border-2 transition-colors text-left ${
-                  casaSeleccionada?.id === casa.id
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-gray-200 hover:border-blue-400"
-                }`}
+                className={`w-full p-3 rounded-lg border-2 transition-colors text-left ${casaSeleccionada?.id === casa.id
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-gray-200 hover:border-blue-400"
+                  }`}
               >
                 <p className="font-semibold text-gray-900">{casa.nombre}</p>
                 <p className="text-sm text-gray-600">{casa.macrodistrito}</p>
