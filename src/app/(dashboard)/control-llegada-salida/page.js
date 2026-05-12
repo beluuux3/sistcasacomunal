@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 function formatHora(timeStr, fechaStr) {
@@ -64,6 +66,28 @@ function formatFecha(fechaStr) {
   return `${day}/${month}/${year}`;
 }
 
+// Distancia haversine en km entre dos puntos
+function distanciaKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = (v) => (Number(v) * Math.PI) / 180;
+  const dLat = toRad(lat2) - toRad(lat1);
+  const dLon = toRad(lon2) - toRad(lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Retorna true si el control pertenece a la casa seleccionada
+function controlEsDeCasa(control, casa) {
+  if (!casa?.latitud || !casa?.longitud) return true; // sin coords, mostrar todo
+  if (!control.latitud_entrada || !control.longitud_entrada) return true; // sin coords en control, incluir
+  return distanciaKm(
+    control.latitud_entrada, control.longitud_entrada,
+    casa.latitud, casa.longitud
+  ) <= 2; // radio 2 km
+}
+
 export default function ControlLlegadaSalidaPage() {
   const { casaSeleccionada } = useCasaSeleccionada();
   const {
@@ -82,8 +106,20 @@ export default function ControlLlegadaSalidaPage() {
   const todayBolivia = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/La_Paz",
   }).format(new Date());
-  const controlDeHoy = controles.find(
+  // Filtrar controles de la casa seleccionada
+  const controlesDeCasa = controles.filter((c) => controlEsDeCasa(c, casaSeleccionada));
+
+  const controlDeHoy = controlesDeCasa.find(
     (c) => c.fecha === todayBolivia && !c.hora_salida,
+  );
+
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 4;
+  const totalPages = Math.max(1, Math.ceil(controlesDeCasa.length / ITEMS_PER_PAGE));
+  const paginatedControles = controlesDeCasa.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
 
   const [ubicacion, setUbicacion] = useState(null);
@@ -508,14 +544,15 @@ export default function ControlLlegadaSalidaPage() {
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
           </div>
-        ) : controles.length === 0 ? (
+        ) : controlesDeCasa.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <AlertCircle size={36} className="mx-auto mb-2 text-gray-300" />
-            <p className="text-sm">No hay registros aún</p>
+            <p className="text-sm">No hay registros para esta casa comunal</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {controles.map((registro) => (
+          <>
+            <div className="space-y-3">
+              {paginatedControles.map((registro) => (
               <div
                 key={registro.id}
                 className="border border-gray-200 rounded-lg p-4 space-y-3"
@@ -590,7 +627,33 @@ export default function ControlLlegadaSalidaPage() {
                 )}
               </div>
             ))}
-          </div>
+            </div>
+
+            {/* Controles de paginación */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                <span className="text-sm text-gray-500">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>

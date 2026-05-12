@@ -805,6 +805,53 @@ export const registrarAsistenciaActividadFullRequest = async (
   return response.data;
 };
 
+// ============== ACTIVIDADES DEL FACILITADOR ==============
+
+/**
+ * Registrar actividad del facilitador
+ * @param {Object} data - { fecha, hora_inicio, hora_fin?, tipo_actividad, descripcion, casa_comunal_id? }
+ * @returns {Promise<Object>}
+ */
+export const registrarActividadFacilitadorRequest = async (data) => {
+  const response = await api.post("/facilitadores/actividades", data);
+  return response.data;
+};
+
+/**
+ * Listar actividades del facilitador
+ * @param {string} [fecha] - Filtrar por fecha (YYYY-MM-DD)
+ * @returns {Promise<Array>}
+ */
+export const listarActividadesFacilitadorRequest = async (fecha = null) => {
+  const response = await api.get("/facilitadores/actividades", {
+    params: { fecha },
+  });
+  return response.data;
+};
+
+/**
+ * Editar actividad del facilitador
+ * @param {number} actividadId
+ * @param {Object} data
+ * @returns {Promise<Object>}
+ */
+export const editarActividadFacilitadorRequest = async (actividadId, data) => {
+  const response = await api.patch(
+    `/facilitadores/actividades/${actividadId}`,
+    data,
+  );
+  return response.data;
+};
+
+/**
+ * Eliminar actividad del facilitador
+ * @param {number} actividadId
+ * @returns {Promise<void>}
+ */
+export const eliminarActividadFacilitadorRequest = async (actividadId) => {
+  await api.delete(`/facilitadores/actividades/${actividadId}`);
+};
+
 // ============== REPORTES (Adicionales) ==============
 
 /**
