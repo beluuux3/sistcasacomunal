@@ -68,9 +68,9 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <div className="inline-block bg-gray-800 p-1 rounded-full mb-4">
               <Image
-                src="/LOGOCASACOMUNAL.jpeg"
+                src="/LogoCasa.png"
                 alt="Logo Casas Comunales"
-                width={100}
+                width={150}
                 height={110}
                 className="rounded-full"
               />

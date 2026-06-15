@@ -1,11 +1,20 @@
 import { jsPDF } from "jspdf";
 
+// 🎨 Paleta dorada corporativa unificada
+const COLORS = {
+  teal: [212, 160, 23], // Dorado principal
+  darkTeal: [158, 114, 5], // Dorado oscuro para títulos secundarios
+  lightTeal: [251, 247, 235], // Fondo crema sutil
+  line: [218, 213, 201], // Gris dorado para divisiones
+  text: [30, 30, 30], // Carbón oscuro para lectura limpia
+};
+
 /**
- * Cargar logo como base64
+ * Cargar logo Casa Comunal
  */
 async function getLogoAsBase64() {
   try {
-    const response = await fetch("/LOGOCASACOMUNAL.jpeg");
+    const response = await fetch("/LogoCasa.png");
     const blob = await response.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -13,7 +22,25 @@ async function getLogoAsBase64() {
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error("Error cargando logo:", error);
+    console.error("Error cargando logo de la casa:", error);
+    return null;
+  }
+}
+
+/**
+ * Cargar logo Alcaldía
+ */
+async function getLogoAlcaldiaBase64() {
+  try {
+    const response = await fetch("/LOGO_ALCALDIA.png");
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error cargando logo de la alcaldía:", error);
     return null;
   }
 }
@@ -36,42 +63,52 @@ export async function generateCasaComunalPDF(casa) {
 
   let yPosition = margin;
 
-  // 🎨 HEADER con Logo
-  const logoBase64 = await getLogoAsBase64();
+  // 🔄 Carga paralela de ambos logos para evitar desincronizaciones
+  const [logoCasa, logoAlcaldia] = await Promise.all([
+    getLogoAsBase64(),
+    getLogoAlcaldiaBase64(),
+  ]);
 
-  if (logoBase64) {
-    // Agregar logo a la izquierda
-    doc.addImage(logoBase64, "JPEG", margin, yPosition - 2, 25, 20);
+  // 1️⃣ PRIMER LOGO: Escudo de la Alcaldía (Extremo Izquierdo)
+  if (logoAlcaldia) {
+    doc.addImage(logoAlcaldia, "PNG", margin, yPosition - 2, 25, 20);
   }
 
-  // Texto "Casa Comunal {nombre}"
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.setTextColor(0, 140, 180);
-  doc.text("CASA COMUNAL", margin + 30, yPosition + 5);
+  // 2️⃣ SEGUNDO LOGO: Casa Comunal (Al lado del de la alcaldía con espacio prudente)
+  if (logoCasa) {
+    // Posicionado dinámicamente: margen + ancho alcaldía (25) + 4mm de separación = margin + 29
+    doc.addImage(logoCasa, "PNG", margin + 29, yPosition - 5, 25, 18);
+  }
 
-  doc.setFontSize(14);
-  doc.setFont(undefined, "normal");
-  doc.setTextColor(80, 80, 80);
-  doc.text(casa.nombre || "", margin + 30, yPosition + 12);
+  // 3️⃣ TEXTOS DEL ENCABEZADO: Desplazados a la derecha para dar aire a los logos
+  const titleX = margin + 58;
 
-  yPosition += 20;
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.teal);
+  doc.text("CASA COMUNAL", titleX, yPosition + 3);
 
-  // Línea separadora (azul turquesa, más gruesa)
-  doc.setDrawColor(0, 140, 180);
-  doc.setLineWidth(1.5);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.darkTeal);
+  doc.text(casa.nombre || "", titleX, yPosition + 9);
+
+  yPosition += 18;
+
+  // Línea separadora estilizada en dorado institucional
+  doc.setDrawColor(...COLORS.teal);
+  doc.setLineWidth(1.2);
   doc.line(margin, yPosition, pageWidth - margin, yPosition);
   yPosition += 8;
 
   // 📋 INFORMACIÓN EN DOS COLUMNAS
-  const colWidth = (contentWidth - 5) / 2; // Espacio entre columnas
+  const colWidth = (contentWidth - 5) / 2;
   const col1X = margin;
   const col2X = margin + colWidth + 5;
 
   let col1Y = yPosition;
   let col2Y = yPosition;
 
-  // Secciones para columna izquierda
   const leftSections = [
     {
       title: "Información General",
@@ -93,7 +130,6 @@ export async function generateCasaComunalPDF(casa) {
     },
   ];
 
-  // Secciones para columna derecha
   const rightSections = [
     {
       title: "Contacto",
@@ -113,20 +149,19 @@ export async function generateCasaComunalPDF(casa) {
   // Renderizar columna izquierda
   leftSections.forEach((section) => {
     doc.setFontSize(11);
-    doc.setFont(undefined, "bold");
-    doc.setTextColor(70, 120, 190);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...COLORS.darkTeal);
     doc.text(section.title, col1X, col1Y);
     col1Y += 7;
 
     doc.setFontSize(9);
-    doc.setFont(undefined, "normal");
-    doc.setTextColor(50, 50, 50);
+    doc.setTextColor(...COLORS.text);
 
     section.data.forEach((item) => {
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text(item.label + ":", col1X + 2, col1Y);
 
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       const labelWidth = doc.getTextWidth(item.label + ": ");
       const maxWidth = colWidth - labelWidth - 4;
       const lines = doc.splitTextToSize(item.value, maxWidth);
@@ -141,27 +176,25 @@ export async function generateCasaComunalPDF(casa) {
         col1Y += 4;
       }
     });
-
     col1Y += 2;
   });
 
   // Renderizar columna derecha
   rightSections.forEach((section) => {
     doc.setFontSize(11);
-    doc.setFont(undefined, "bold");
-    doc.setTextColor(70, 120, 190);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...COLORS.darkTeal);
     doc.text(section.title, col2X, col2Y);
     col2Y += 7;
 
     doc.setFontSize(9);
-    doc.setFont(undefined, "normal");
-    doc.setTextColor(50, 50, 50);
+    doc.setTextColor(...COLORS.text);
 
     section.data.forEach((item) => {
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text(item.label + ":", col2X + 2, col2Y);
 
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       const labelWidth = doc.getTextWidth(item.label + ": ");
       const maxWidth = colWidth - labelWidth - 4;
       const lines = doc.splitTextToSize(item.value, maxWidth);
@@ -176,58 +209,53 @@ export async function generateCasaComunalPDF(casa) {
         col2Y += 4;
       }
     });
-
     col2Y += 2;
   });
 
-  // Obtener la posición Y más grande
   yPosition = Math.max(col1Y, col2Y) + 8;
 
-  // Verificar si necesitamos nueva página para la tabla
   if (yPosition > pageHeight - 50) {
     doc.addPage();
     yPosition = margin;
   }
 
-  // 📋 TABLA FINAL
-  doc.setFont(undefined, "bold");
+  // 📋 TABLA Y SECCIÓN DE FIRMA REFORMADA
+  doc.setFont("helvetica", "bold");
 
   const tableStartX = margin;
   const tableStartY = yPosition;
-  const tableWidth = 110; // Ancho de la tabla (deja espacio para la firma a la derecha)
+  const tableWidth = 110;
   const acreditadaWidth = tableWidth / 2;
-  const vigenteWidth = tableWidth / 2;
   const headerHeight = 8;
-  const contentHeight = 12;
+  const contentCellHeight = 12;
 
-  // FILA 1: HEADERS - ACREDITADA | VIGENTE
-  // Celda ACREDITADA
-  doc.setFillColor(100, 180, 220);
-  doc.setTextColor(255, 255, 255);
+  // Cabecera ACREDITADA con fondo institucional claro
+  doc.setFillColor(...COLORS.lightTeal);
   doc.rect(tableStartX, tableStartY, acreditadaWidth, headerHeight, "F");
-  doc.setFontSize(10);
-  doc.text("ACREDITADA", tableStartX + 3, tableStartY + 6);
 
-  // FILA 2: ESPACIOS EN BLANCO (debajo de ACREDITADA y VIGENTE)
-  doc.setDrawColor(0, 0, 0);
+  doc.setDrawColor(...COLORS.line);
   doc.setLineWidth(0.3);
-  doc.setTextColor(0, 0, 0);
+  doc.rect(tableStartX, tableStartY, acreditadaWidth, headerHeight, "D");
 
-  // Espacio debajo ACREDITADA
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.darkTeal);
+  doc.text("ACREDITADA", tableStartX + 3, tableStartY + 5.5);
+
+  // Espacio vacío para marcar / firmar
   doc.rect(
     tableStartX,
     tableStartY + headerHeight,
     acreditadaWidth,
-    contentHeight,
+    contentCellHeight,
+    "D",
   );
 
-  // 📝 FIRMA DE ENCARGADO (a la derecha de la tabla)
-  const firmaX = tableStartX + tableWidth + 8; // Espacio a la derecha de la tabla
+  // 📝 SECCIÓN FIRMA DE ENCARGADO
+  const firmaX = tableStartX + tableWidth + 8;
   const firmaWidth = contentWidth - tableWidth - 8;
 
-  // Línea para firma
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
+  doc.setDrawColor(...COLORS.line);
+  doc.setLineWidth(0.4);
   doc.line(
     firmaX,
     tableStartY + headerHeight + 8,
@@ -235,10 +263,17 @@ export async function generateCasaComunalPDF(casa) {
     tableStartY + headerHeight + 8,
   );
 
-  doc.setFontSize(7);
-  doc.setFont(undefined, "bold");
-  doc.setTextColor(0, 0, 0);
-  doc.text("Firma de Encargado de Casa comunales", firmaX, tableStartY + 3);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.text);
+  doc.text(
+    "Firma de Encargado de Casas Comunales",
+    firmaX + firmaWidth / 2,
+    tableStartY + headerHeight + 13,
+    {
+      align: "center",
+    },
+  );
 
   return doc;
 }
