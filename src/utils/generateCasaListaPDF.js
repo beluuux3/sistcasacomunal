@@ -1,31 +1,58 @@
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// Función para cargar el logo y convertirlo a Base64
+// 🎨 Paleta dorada corporativa unificada
+const COLORS = {
+  teal: [212, 160, 23], // Dorado principal
+  darkTeal: [158, 114, 5], // Dorado oscuro para subtítulos y textos fuertes
+  lightTeal: [251, 247, 235], // Fondo crema sutil para la cabecera de la tabla
+  line: [218, 213, 201], // Gris dorado para bordes
+  text: [30, 30, 30], // Carbón oscuro para lectura limpia
+};
+
+// Función para cargar el logo de la casa
 async function getLogoAsBase64() {
   try {
-    const response = await fetch("/LOGOCASACOMUNAL.jpeg");
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
+    const response = await fetch("/LogoCasa.png");
+    if (!response.ok) throw new Error("Network response was not ok");
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        // El resultado es una URL de datos que contiene la imagen en Base64
-        resolve(reader.result);
-      };
+      reader.onloadend = () => resolve(reader.result);
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
   } catch (error) {
     console.error("Error loading logo for PDF:", error);
-    return null; // Retorna null si no se puede cargar el logo
+    return null;
+  }
+}
+
+// Función para cargar el logo de la alcaldía
+async function getLogoAlcaldiaBase64() {
+  try {
+    const response = await fetch("/LOGO_ALCALDIA.png");
+    if (!response.ok) throw new Error("Network response was not ok");
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error loading alcaldia logo for PDF:", error);
+    return null;
   }
 }
 
 export const generateCasaListaPDF = async (casa, tallerInfo, participantes) => {
-  const logoBase64 = await getLogoAsBase64();
+  // 🔄 Carga asíncrona y paralela de ambos logos
+  const [logoCasa, logoAlcaldia] = await Promise.all([
+    getLogoAsBase64(),
+    getLogoAlcaldiaBase64(),
+  ]);
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -36,45 +63,72 @@ export const generateCasaListaPDF = async (casa, tallerInfo, participantes) => {
   const margin = 20;
   let yPosition = margin;
 
-  // 🎨 HEADER similar a generateCasaComunalPDF
-  if (logoBase64) {
-    doc.addImage(logoBase64, "JPEG", margin, yPosition - 2, 25, 20);
+  // 1️⃣ PRIMER LOGO: Escudo de la Alcaldía (Extremo Izquierdo)
+  if (logoAlcaldia) {
+    doc.addImage(logoAlcaldia, "PNG", margin, yPosition - 2, 25, 20);
   }
 
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.setTextColor(0, 140, 180);
-  doc.text("CASA COMUNAL", margin + 30, yPosition + 5);
+  // 2️⃣ SEGUNDO LOGO: Casa Comunal (Al lado de la alcaldía con espacio controlado)
+  if (logoCasa) {
+    // Posición X: margen + ancho de alcaldía (25) + 4mm de separación = margin + 29
+    doc.addImage(logoCasa, "PNG", margin + 29, yPosition - 5, 25, 18);
+  }
 
-  doc.setFontSize(14);
-  doc.setFont(undefined, "normal");
-  doc.setTextColor(80, 80, 80);
-  doc.text("Lista de Participantes", margin + 30, yPosition + 12);
+  // 3️⃣ TEXTOS DEL ENCABEZADO: Desplazados a la derecha para no colisionar con los logos
+  const titleX = margin + 58;
 
-  yPosition += 20;
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.teal);
+  doc.text("CASA COMUNAL", titleX, yPosition + 3);
 
-  // Línea separadora
-  doc.setDrawColor(0, 140, 180);
-  doc.setLineWidth(1.5);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 15;
-
-
-  // Información de la Casa y Taller
-  doc.setFontSize(11);
-  doc.setTextColor(52, 73, 94); // Un color de texto grisáceo
+  doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
-  doc.text(`Casa Comunal: ${casa?.nombre || "No especificada"}`, margin, yPosition);
-  yPosition += 7;
-  doc.text(`Taller: ${tallerInfo?.tallerNombre || "No asignado"}`, margin, yPosition);
-  yPosition += 7;
+  doc.setTextColor(80, 80, 80);
+  doc.text("Lista de Participantes", titleX, yPosition + 9);
+
+  yPosition += 18;
+
+  // Línea separadora estilizada en dorado institucional
+  doc.setDrawColor(...COLORS.teal);
+  doc.setLineWidth(1.2);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 12;
+
+  // Detalles informativos de la Casa y Taller
+  doc.setFontSize(10.5);
+  doc.setTextColor(...COLORS.text);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Casa Comunal: ", margin, yPosition);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${casa?.nombre || "No especificada"}`, margin + 28, yPosition);
+  yPosition += 6.5;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Taller: ", margin, yPosition);
+  doc.setFont("helvetica", "normal");
   doc.text(
-    `Facilitador: ${tallerInfo?.facilitadorNombre || "No asignado"}`,
-    margin,
+    `${tallerInfo?.tallerNombre || "No asignado"}`,
+    margin + 13,
     yPosition,
   );
-  yPosition += 7;
-  doc.text(`Horario: ${tallerInfo?.horario || "No definido"}`, margin, yPosition);
+  yPosition += 6.5;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Facilitador: ", margin, yPosition);
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    `${tallerInfo?.facilitadorNombre || "No asignado"}`,
+    margin + 21,
+    yPosition,
+  );
+  yPosition += 6.5;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Horario: ", margin, yPosition);
+  doc.setFont("helvetica", "normal");
+  doc.text(`${tallerInfo?.horario || "No definido"}`, margin + 16, yPosition);
   yPosition += 10;
 
   // Tabla de Participantes
@@ -122,18 +176,27 @@ export const generateCasaListaPDF = async (casa, tallerInfo, participantes) => {
     theme: "grid",
     margin: { left: margin, right: margin },
     headStyles: {
-      fillColor: [23, 43, 77], // Azul oscuro para la cabecera de la tabla
-      textColor: 255,
+      fillColor: COLORS.lightTeal, // Fondo crema institucional elegante
+      textColor: COLORS.darkTeal, // Texto dorado oscuro para alta legibilidad
       fontStyle: "bold",
+      lineColor: COLORS.line,
+      lineWidth: 0.3,
     },
     styles: {
+      font: "helvetica",
       fontSize: 9,
       cellPadding: 2,
+      textColor: COLORS.text,
+      lineColor: COLORS.line,
+      lineWidth: 0.25,
     },
     columnStyles: {
-      0: { cellWidth: 10 }, // Nro
+      0: { cellWidth: 10, halign: "center" }, // Nro centrado
       4: { cellWidth: 25 }, // CI
       5: { cellWidth: 25 }, // Celular
+    },
+    alternateRowStyles: {
+      fillColor: [253, 251, 245], // Alternancia sutil basada en el tono crema
     },
   });
 
@@ -142,9 +205,9 @@ export const generateCasaListaPDF = async (casa, tallerInfo, participantes) => {
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.setTextColor(150);
+    doc.setTextColor(140, 140, 140);
     doc.text(
-      `Página ${i} de ${pageCount}`,
+      `Página ${i} de ${pageCount} | Sistema de Gestión de Casas Comunales`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 10,
       { align: "center" },

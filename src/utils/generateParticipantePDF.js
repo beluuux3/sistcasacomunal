@@ -2,38 +2,33 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const COLORS = {
-  teal: [23, 162, 184],
-  darkTeal: [18, 125, 145],
-  lightTeal: [232, 244, 248],
-  line: [210, 210, 210],
-  text: [20, 20, 20],
-  muted: [95, 95, 95],
+  teal: [212, 160, 23],
+  darkTeal: [158, 114, 5],
+  lightTeal: [251, 247, 235],
+  line: [218, 213, 201],
+  text: [30, 30, 30],
+  muted: [120, 110, 90],
 };
 
 function toText(value) {
   if (Array.isArray(value)) {
     return value.filter(Boolean).join(", ") || "-";
   }
-
   if (value === null || value === undefined || value === "") {
     return "-";
   }
-
   return String(value);
 }
 
 function formatDate(value, localeOptions) {
   if (!value) return "-";
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return toText(value);
-
   return date.toLocaleDateString("es-ES", localeOptions);
 }
 
 function getEdad(participante) {
   if (!participante?.fecha_nacimiento) return "-";
-
   const birthDate = new Date(participante.fecha_nacimiento);
   if (Number.isNaN(birthDate.getTime())) return "-";
 
@@ -47,7 +42,6 @@ function getEdad(participante) {
   ) {
     age -= 1;
   }
-
   return String(age);
 }
 
@@ -59,9 +53,8 @@ function getGenero(participante) {
 
 async function getLogoAsBase64() {
   try {
-    const response = await fetch("/LOGOCASACOMUNAL.jpeg");
+    const response = await fetch("/LogoCasa.png");
     const blob = await response.blob();
-
     return await new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
@@ -73,53 +66,80 @@ async function getLogoAsBase64() {
   }
 }
 
+async function getLogoBase64() {
+  try {
+    const response = await fetch("/LOGO_ALCALDIA.png");
+    const blob = await response.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error loading logo:", error);
+    return null;
+  }
+}
+
+// 1. CORREGIDO: Se reordenaron y alinearon explícitamente los parámetros
 function drawHeader(
   doc,
-  logoBase64,
+  logoBase64, // LogoCasa.png
+  logoBase2, // LOGO_ALCALDIA.png
   pageWidth,
   margin,
   numeroRegistro,
   casaNombre,
 ) {
-  const titleX = margin + 34;
   const headerTop = margin;
 
-  if (logoBase64) {
-    doc.addImage(logoBase64, "JPEG", margin, headerTop - 1, 24, 19);
+  if (logoBase2) {
+    // Calculado dinámicamente para alinearse perfectamente al margen derecho
+    doc.addImage(logoBase2, "PNG", margin, headerTop - 2, 25, 20);
   }
 
+  // LOGO 1: Logo de Casa Comunal / Centros Vida en el extremo izquierdo
+  if (logoBase64) {
+    doc.addImage(logoBase64, "PNG", margin + 29, headerTop - 1, 28, 20);
+  }
+
+  // Títulos desplazados horizontalmente para no colisionar con el logo izquierdo
+  const titleX = margin + 62;
+
   doc.setTextColor(...COLORS.teal);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text("CASAS COMUNALES", titleX, headerTop + 6);
+  doc.setFontSize(16);
+  doc.text("CASAS COMUNALES", titleX, headerTop + 5);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(...COLORS.muted);
-  doc.text("Ficha de Inscripcion de Participante", titleX, headerTop + 12);
+  doc.text("Ficha de Inscripcion de Participante", titleX, headerTop + 10);
 
+  // Los identificadores numéricos se bajan levemente para convivir con el escudo de la alcaldía
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(15);
   doc.setTextColor(...COLORS.teal);
-  doc.text(`Reg. #${numeroRegistro}`, pageWidth - margin, headerTop + 5, {
+  doc.text(`Reg. #${numeroRegistro}`, pageWidth - margin, headerTop + 16, {
     align: "right",
   });
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(...COLORS.muted);
   doc.text(
     `Fecha: ${new Date().toLocaleDateString("es-ES")}`,
     pageWidth - margin,
-    headerTop + 11,
+    // Espaciado corregido para evitar superposiciones
+    headerTop + 21,
     { align: "right" },
   );
 
   doc.setDrawColor(...COLORS.teal);
   doc.setLineWidth(1.2);
-  doc.line(margin, headerTop + 20, pageWidth - margin, headerTop + 20);
+  doc.line(margin, headerTop + 24, pageWidth - margin, headerTop + 24);
 
-  const casaTop = headerTop + 24;
+  const casaTop = headerTop + 28;
   doc.setFillColor(...COLORS.lightTeal);
   doc.setDrawColor(...COLORS.teal);
   doc.roundedRect(margin, casaTop, pageWidth - margin * 2, 16, 2, 2, "FD");
@@ -130,7 +150,7 @@ function drawHeader(
   doc.text("Casa Comunal Asignada", margin + 3, casaTop + 5);
 
   doc.setFontSize(13);
-  doc.text(toText(casaNombre), margin + 3, casaTop + 11.5);
+  doc.text(toText(casaNombre), margin + 3, casaTop + 12);
 
   return casaTop + 21;
 }
@@ -263,10 +283,14 @@ export async function generateParticipantePDFBlob(
     minute: "2-digit",
   });
 
+  const logoBase2 = await getLogoBase64();
   const logoBase64 = await getLogoAsBase64();
+
+  // 2. CORREGIDO: Se inyectó el parámetro 'logoBase2' faltante en la secuencia de ejecución
   let y = drawHeader(
     doc,
     logoBase64,
+    logoBase2,
     pageWidth,
     margin,
     numeroRegistro,
@@ -279,9 +303,11 @@ export async function generateParticipantePDFBlob(
     }
 
     doc.addPage();
+    // 3. CORREGIDO: Inclusión consistente para las nuevas páginas añadidas
     y = drawHeader(
       doc,
       logoBase64,
+      logoBase2,
       pageWidth,
       margin,
       numeroRegistro,

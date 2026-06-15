@@ -1,5 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -37,27 +35,50 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// 🎨 Paleta dorada corporativa unificada para Reportes PDF
+const COLORS_PDF = {
+  teal: [212, 160, 23], // Dorado principal
+  darkTeal: [158, 114, 5], // Dorado oscuro para títulos secundarios
+  lightTeal: [251, 247, 235], // Fondo crema sutil para celdas
+  line: [218, 213, 201], // Gris dorado para bordes y divisiones
+  text: [30, 30, 30], // Carbón oscuro para lectura limpia
+};
+
 const MESES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 const MAP_TO_UI = {
-  "Taller": "Asistencia Actividades",
+  Taller: "Asistencia Actividades",
   "Elaboracion de Material": "Elaboración de material",
-  "Otro": "Asistencia a la casa comunal",
-  "Reunion": "Reunión",
-  "Planificacion": "Planificación"
+  Otro: "Asistencia a la casa comunal",
+  Reunion: "Reunión",
+  Planificacion: "Planificación",
 };
 
 const MAP_TO_BACKEND = {
   "Asistencia Actividades": "Taller",
   "Elaboración de material": "Elaboracion de Material",
   "Asistencia a la casa comunal": "Otro",
-  "Reuniones": "Reunion",
+  Reuniones: "Reunion",
 };
 
-const TIPOS_ACTIVIDAD_UI = ["Asistencia Actividades", "Elaboración de material", "Asistencia a la casa comunal"];
+const TIPOS_ACTIVIDAD_UI = [
+  "Asistencia Actividades",
+  "Elaboración de material",
+  "Asistencia a la casa comunal",
+];
 
 const EMPTY_CONTROL_FORM = {
   facilitador_id: "",
@@ -87,7 +108,6 @@ const formatTimeDisplay = (value) => {
   if (!value) return "-";
   const raw = String(value).trim();
 
-
   const timeOnly = raw.includes("T") ? raw.split("T")[1] : raw;
   const match = timeOnly.match(
     /^(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/,
@@ -97,12 +117,10 @@ const formatTimeDisplay = (value) => {
     const [, hh, mm, ss, fraction = "", tz = ""] = match;
     const isAdminManualTime = ss === "00" && !fraction;
 
-    // Admin crea desde input HH:mm -> guardar/mostrar sin conversión.
     if (isAdminManualTime) {
       return `${hh}:${mm}`;
     }
 
-    // Facilitador (segundos reales y/o fracción) -> convertir UTC a hora Bolivia.
     const normalizedTz = tz || "Z";
     const parsed = new Date(
       `1970-01-01T${hh}:${mm}:${ss}${fraction}${normalizedTz}`,
@@ -128,24 +146,38 @@ const toNumberOrNull = (value) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
-// Función para cargar el logo y convertirlo a Base64
+// Función para cargar el logo de la Casa Comunal en Base64
 async function getLogoAsBase64() {
   try {
-    const response = await fetch("/LOGOCASACOMUNAL.jpeg");
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
+    const response = await fetch("/LogoCasa.png");
+    if (!response.ok) throw new Error("Network response was not ok");
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result);
-      };
+      reader.onloadend = () => resolve(reader.result);
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
   } catch (error) {
     console.error("Error loading logo for PDF:", error);
+    return null;
+  }
+}
+
+// Nueva función para cargar el logo de la Alcaldía en Base64
+async function getLogoAlcaldiaBase64() {
+  try {
+    const response = await fetch("/LOGO_ALCALDIA.png");
+    if (!response.ok) throw new Error("Network response was not ok");
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error loading alcaldia logo for PDF:", error);
     return null;
   }
 }
@@ -274,23 +306,31 @@ export default function ControlFacilitadoresPage() {
 
         setCasasByFacilitador(mapPlain);
       })
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setLoadingFacilitadores(false));
 
-    listGestionesRequest().then((gestiones) => {
-      if (Array.isArray(gestiones) && gestiones.length > 0) {
-        const aniosUnicos = Array.from(new Set(gestiones.map(g => g.anio))).sort((a, b) => b - a);
-        if (aniosUnicos.length > 0) {
-          setAnios(aniosUnicos);
-          setFilterAnio(prev => aniosUnicos.includes(prev) ? prev : aniosUnicos[0]);
+    listGestionesRequest()
+      .then((gestiones) => {
+        if (Array.isArray(gestiones) && gestiones.length > 0) {
+          const aniosUnicos = Array.from(
+            new Set(gestiones.map((g) => g.anio)),
+          ).sort((a, b) => b - a);
+          if (aniosUnicos.length > 0) {
+            setAnios(aniosUnicos);
+            setFilterAnio((prev) =>
+              aniosUnicos.includes(prev) ? prev : aniosUnicos[0],
+            );
+          }
         }
-      }
-    }).catch(() => { });
+      })
+      .catch(() => {});
 
     // Cargar actividades
-    listarActividadesFacilitadorRequest().then(data => {
-      setActividades(Array.isArray(data) ? data : []);
-    }).catch(() => { });
+    listarActividadesFacilitadorRequest()
+      .then((data) => {
+        setActividades(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
   }, [loadControles]);
 
   useEffect(() => {
@@ -305,49 +345,58 @@ export default function ControlFacilitadoresPage() {
       return Number(m) === filterMes && Number(y) === filterAnio;
     };
 
-    const filtradosControles = controles.filter((c) => {
-      const matchFacilitador = !selectedFacilitador || c.facilitador_id === Number(selectedFacilitador);
-      const matchEstado =
-        filterEstado === "todos" ||
-        (filterEstado === "validados" && c.validado) ||
-        (filterEstado === "pendientes" && !c.validado);
-      return inMesAnio(c.fecha) && matchFacilitador && matchEstado;
-    }).map((c) => ({
-      id: `ctrl-${c.id}`,
-      source: "control",
-      fecha: c.fecha,
-      facilitador_id: c.facilitador_id,
-      tipo: "Asistencia a la casa comunal",
-      descripcion: "Actividad realizada en la casa comunal",
-      hora_entrada: c.hora_entrada,
-      hora_salida: c.hora_salida,
-      latitud_entrada: c.latitud_entrada,
-      longitud_entrada: c.longitud_entrada,
-      validado: c.validado,
-      original: c
-    }));
+    const filtradosControles = controles
+      .filter((c) => {
+        const matchFacilitador =
+          !selectedFacilitador ||
+          c.facilitador_id === Number(selectedFacilitador);
+        const matchEstado =
+          filterEstado === "todos" ||
+          (filterEstado === "validados" && c.validado) ||
+          (filterEstado === "pendientes" && !c.validado);
+        return inMesAnio(c.fecha) && matchFacilitador && matchEstado;
+      })
+      .map((c) => ({
+        id: `ctrl-${c.id}`,
+        source: "control",
+        fecha: c.fecha,
+        facilitador_id: c.facilitador_id,
+        tipo: "Asistencia a la casa comunal",
+        descripcion: "Actividad realizada en la casa comunal",
+        hora_entrada: c.hora_entrada,
+        hora_salida: c.hora_salida,
+        latitud_entrada: c.latitud_entrada,
+        longitud_entrada: c.longitud_entrada,
+        validado: c.validado,
+        original: c,
+      }));
 
-    const filtradasAct = actividades.filter((a) => {
-      const matchFacilitador = !selectedFacilitador || a.facilitador_id === Number(selectedFacilitador);
-      const matchCasa = !filterCasa || a.casa_comunal_id === Number(filterCasa);
-      return inMesAnio(a.fecha) && matchFacilitador && matchCasa;
-    }).map((a) => ({
-      id: `act-${a.id}`,
-      source: "actividad",
-      fecha: a.fecha,
-      facilitador_id: a.facilitador_id,
-      tipo: MAP_TO_UI[a.tipo_actividad] || a.tipo_actividad,
-      descripcion: a.descripcion,
-      hora_entrada: a.hora_inicio,
-      hora_salida: a.hora_fin,
-      latitud_entrada: null,
-      longitud_entrada: null,
-      validado: true,
-      original: a
-    }));
+    const filtradasAct = actividades
+      .filter((a) => {
+        const matchFacilitador =
+          !selectedFacilitador ||
+          a.facilitador_id === Number(selectedFacilitador);
+        const matchCasa =
+          !filterCasa || a.casa_comunal_id === Number(filterCasa);
+        return inMesAnio(a.fecha) && matchFacilitador && matchCasa;
+      })
+      .map((a) => ({
+        id: `act-${a.id}`,
+        source: "actividad",
+        fecha: a.fecha,
+        facilitador_id: a.facilitador_id,
+        tipo: MAP_TO_UI[a.tipo_actividad] || a.tipo_actividad,
+        descripcion: a.descripcion,
+        hora_entrada: a.hora_inicio,
+        hora_salida: a.hora_fin,
+        latitud_entrada: null,
+        longitud_entrada: null,
+        validado: true,
+        original: a,
+      }));
 
     return [...filtradosControles, ...filtradasAct].sort((a, b) =>
-      a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0
+      a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0,
     );
   })();
 
@@ -385,7 +434,7 @@ export default function ControlFacilitadoresPage() {
       );
       setShowValidacionModal(false);
       setValidationData({ validado: true, observaciones: "" });
-      loadControles(); // Recargar lista
+      loadControles();
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       alert(err.message || "Error al validar control");
@@ -400,7 +449,6 @@ export default function ControlFacilitadoresPage() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    // Parsear como fecha local para evitar el desfase UTC
     const [year, month, day] = dateStr.split("-");
     return new Date(year, month - 1, day).toLocaleDateString("es-ES", {
       year: "numeric",
@@ -436,35 +484,19 @@ export default function ControlFacilitadoresPage() {
     );
   };
 
-  const syncLocationByCasa = (nextForm, casaId) => {
-    const casaSeleccionada = casas.find((casa) => casa.id === Number(casaId));
-
-    return {
-      ...nextForm,
-      casa_comunal_id: casaId,
-      latitud_entrada:
-        casaSeleccionada?.latitud !== undefined &&
-          casaSeleccionada?.latitud !== null
-          ? String(casaSeleccionada.latitud)
-          : "",
-      longitud_entrada:
-        casaSeleccionada?.longitud !== undefined &&
-          casaSeleccionada?.longitud !== null
-          ? String(casaSeleccionada.longitud)
-          : "",
-    };
-  };
-
-  const casasDelFacilitador = getCasasByFacilitador(controlForm.facilitador_id);
-
   const handleGeneratePDF = async () => {
     if (!selectedFacilitador) {
       alert("Debes seleccionar un facilitador para generar el reporte.");
       return;
     }
 
-    const logoBase64 = await getLogoAsBase64();
-    const doc = new jsPDF({ format: "letter" });
+    // 🔄 Carga paralela controlada de ambos logotipos
+    const [logoCasa, logoAlcaldia] = await Promise.all([
+      getLogoAsBase64(),
+      getLogoAlcaldiaBase64(),
+    ]);
+
+    const doc = new jsPDF({ format: "letter", unit: "mm" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
     let yPosition = margin;
@@ -472,25 +504,31 @@ export default function ControlFacilitadoresPage() {
     const facilitadorNombre = getNombreFacilitador(Number(selectedFacilitador));
     const mesNombre = MESES[filterMes - 1];
 
-    if (logoBase64) {
-      doc.addImage(logoBase64, "JPEG", margin, yPosition - 2, 25, 20);
+    if (logoAlcaldia) {
+      doc.addImage(logoAlcaldia, "PNG", margin, yPosition - 2, 25, 20);
     }
 
-    doc.setFontSize(16);
-    doc.setFont(undefined, "bold");
-    doc.setTextColor(0, 140, 180);
-    doc.text("CASA COMUNAL", margin + 30, yPosition + 5);
+    if (logoCasa) {
+      doc.addImage(logoCasa, "JPEG", margin + 29, yPosition - 5, 25, 18);
+    }
 
-    doc.setFontSize(14);
-    doc.setFont(undefined, "normal");
+    const titleX = margin + 58;
+
+    doc.setFontSize(15);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...COLORS_PDF.teal);
+    doc.text("CASA COMUNAL", titleX, yPosition + 3);
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(80, 80, 80);
-    doc.text("HORARIO DE VOLUNTARIADO - CASA COMUNAL", margin + 30, yPosition + 12);
+    doc.text("HORARIO DE VOLUNTARIADO - CASA COMUNAL", titleX, yPosition + 9);
 
-    yPosition += 20;
+    yPosition += 18;
 
-    // Línea separadora
-    doc.setDrawColor(0, 140, 180);
-    doc.setLineWidth(1.5);
+    // Línea separadora dorada estilizada
+    doc.setDrawColor(...COLORS_PDF.teal);
+    doc.setLineWidth(1.2);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 10;
 
@@ -505,7 +543,7 @@ export default function ControlFacilitadoresPage() {
       4: "Jueves",
       5: "Viernes",
       6: "Sábado",
-      7: "Domingo"
+      7: "Domingo",
     };
 
     if (filterCasa) {
@@ -513,30 +551,40 @@ export default function ControlFacilitadoresPage() {
       if (casaSelec) casaComunalTexto = casaSelec.nombre;
 
       const horarioCasa = horarios.find(
-        (h) => h.casa_id === Number(filterCasa) && h.facilitador_id === Number(selectedFacilitador)
+        (h) =>
+          h.casa_id === Number(filterCasa) &&
+          h.facilitador_id === Number(selectedFacilitador),
       );
       if (horarioCasa) {
-        const diaStr = horarioCasa.dia_semana ? `${NOMBRES_DIAS[horarioCasa.dia_semana] || ""} ` : "";
-        horarioTexto = (horarioCasa.hora_inicio && horarioCasa.hora_fin)
-          ? `${diaStr}${horarioCasa.hora_inicio} - ${horarioCasa.hora_fin}`
-          : horarioCasa.horario || horarioCasa.hora || "No definido";
+        const diaStr = horarioCasa.dia_semana
+          ? `${NOMBRES_DIAS[horarioCasa.dia_semana] || ""} `
+          : "";
+        horarioTexto =
+          horarioCasa.hora_inicio && horarioCasa.hora_fin
+            ? `${diaStr}${horarioCasa.hora_inicio} - ${horarioCasa.hora_fin}`
+            : horarioCasa.horario || horarioCasa.hora || "No definido";
       }
     } else {
       const casasAsig = getCasasByFacilitador(selectedFacilitador);
       if (casasAsig.length > 0) {
         casaComunalTexto = casasAsig.map((c) => c.nombre).join(", ");
       }
-      const horarioFac = horarios.find((h) => h.facilitador_id === Number(selectedFacilitador));
+      const horarioFac = horarios.find(
+        (h) => h.facilitador_id === Number(selectedFacilitador),
+      );
       if (horarioFac) {
-        const diaStr = horarioFac.dia_semana ? `${NOMBRES_DIAS[horarioFac.dia_semana] || ""} ` : "";
-        horarioTexto = (horarioFac.hora_inicio && horarioFac.hora_fin)
-          ? `${diaStr}${horarioFac.hora_inicio} - ${horarioFac.hora_fin}`
-          : horarioFac.horario || horarioFac.hora || "No definido";
+        const diaStr = horarioFac.dia_semana
+          ? `${NOMBRES_DIAS[horarioFac.dia_semana] || ""} `
+          : "";
+        horarioTexto =
+          horarioFac.hora_inicio && horarioFac.hora_fin
+            ? `${diaStr}${horarioFac.hora_inicio} - ${horarioFac.hora_fin}`
+            : horarioFac.horario || horarioFac.hora || "No definido";
       }
     }
 
-    doc.setFontSize(11);
-    doc.setTextColor(52, 73, 94);
+    doc.setFontSize(10.5);
+    doc.setTextColor(...COLORS_PDF.text);
 
     const drawBoldText = (label, value, x, y) => {
       doc.setFont("helvetica", "bold");
@@ -547,56 +595,77 @@ export default function ControlFacilitadoresPage() {
     };
 
     drawBoldText("Facilitador:", facilitadorNombre, margin, yPosition);
-    yPosition += 7;
+    yPosition += 6.5;
     drawBoldText("Mes:", `${mesNombre} ${filterAnio}`, margin, yPosition);
-    yPosition += 7;
+    yPosition += 6.5;
     drawBoldText("Casa Comunal:", casaComunalTexto, margin, yPosition);
-    yPosition += 7;
+    yPosition += 6.5;
     drawBoldText("Horario:", horarioTexto, margin, yPosition);
     yPosition += 10;
 
     // Calcular total de horas en el mes
     const totalMinutos = registrosCombinados.reduce((acc, reg) => {
-      if (!reg.hora_entrada || !reg.hora_salida || reg.hora_entrada === "-" || reg.hora_salida === "-") return acc;
+      if (
+        !reg.hora_entrada ||
+        !reg.hora_salida ||
+        reg.hora_entrada === "-" ||
+        reg.hora_salida === "-"
+      )
+        return acc;
       const [hIni, mIni] = String(reg.hora_entrada).split(":").map(Number);
       const [hFin, mFin] = String(reg.hora_salida).split(":").map(Number);
       if (isNaN(hIni) || isNaN(mIni) || isNaN(hFin) || isNaN(mFin)) return acc;
 
-      let diff = (hFin * 60 + mFin) - (hIni * 60 + mIni);
-      if (diff < 0) diff += 24 * 60; // Por si cruza medianoche
+      let diff = hFin * 60 + mFin - (hIni * 60 + mIni);
+      if (diff < 0) diff += 24 * 60;
       return acc + diff;
     }, 0);
 
     const horasTotal = Math.floor(totalMinutos / 60);
     const minutosTotal = totalMinutos % 60;
 
-    doc.setFont(undefined, "bold");
-    doc.text(`Total Horas Trabajadas: ${horasTotal}h ${minutosTotal}m`, margin, yPosition);
-    doc.setFont(undefined, "normal");
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...COLORS_PDF.darkTeal);
+    doc.text(
+      `Total Horas Trabajadas: ${horasTotal}h ${minutosTotal}m`,
+      margin,
+      yPosition,
+    );
     yPosition += 6;
 
-    const tableData = registrosCombinados.map(reg => [
+    const tableData = registrosCombinados.map((reg) => [
       formatDate(reg.fecha),
       reg.tipo || "Asistencia a la casa comunal",
       formatTime(reg.hora_entrada),
       formatTime(reg.hora_salida),
-      reg.descripcion || "-"
+      reg.descripcion || "-",
     ]);
 
     autoTable(doc, {
       startY: yPosition,
-      head: [["Fecha", "Tipo de Actividad", "Llegada", "Salida", "Descripción"]],
+      head: [
+        ["Fecha", "Tipo de Actividad", "Llegada", "Salida", "Descripción"],
+      ],
       body: tableData,
       theme: "grid",
       margin: { left: margin, right: margin },
       headStyles: {
-        fillColor: [23, 43, 77],
-        textColor: 255,
+        fillColor: COLORS_PDF.lightTeal,
+        textColor: COLORS_PDF.darkTeal,
         fontStyle: "bold",
+        lineColor: COLORS_PDF.line,
+        lineWidth: 0.3,
       },
       styles: {
+        font: "helvetica",
         fontSize: 9,
         cellPadding: 2,
+        textColor: COLORS_PDF.text,
+        lineColor: COLORS_PDF.line,
+        lineWidth: 0.25,
+      },
+      alternateRowStyles: {
+        fillColor: [253, 251, 245],
       },
     });
 
@@ -604,29 +673,41 @@ export default function ControlFacilitadoresPage() {
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.setTextColor(150);
+      doc.setTextColor(140, 140, 140);
       doc.text(
-        `Página ${i} de ${pageCount}`,
+        `Página ${i} de ${pageCount} | Sistema de Gestión de Casas Comunales`,
         doc.internal.pageSize.getWidth() / 2,
         doc.internal.pageSize.getHeight() - 10,
-        { align: "center" }
+        { align: "center" },
       );
     }
 
-    doc.save(`Reporte_${facilitadorNombre.replace(/\s+/g, "_")}_${mesNombre}_${filterAnio}.pdf`);
+    doc.save(
+      `Reporte_${facilitadorNombre.replace(/\s+/g, "_")}_${mesNombre}_${filterAnio}.pdf`,
+    );
   };
 
+  // Resto de funciones auxiliares y Handlers del componente...
   const openEditActividad = (reg) => {
     setActModalMode("edit");
     setActForm({
       id: reg.original.id,
       facilitador_id: reg.original.facilitador_id || "",
-      tipo_actividad: MAP_TO_UI[reg.original.tipo_actividad] || reg.original.tipo_actividad || "Elaboración de material",
+      tipo_actividad:
+        MAP_TO_UI[reg.original.tipo_actividad] ||
+        reg.original.tipo_actividad ||
+        "Elaboración de material",
       fecha: reg.original.fecha || "",
-      hora_inicio: reg.original.hora_inicio ? String(reg.original.hora_inicio).slice(0, 5) : "",
-      hora_fin: reg.original.hora_fin ? String(reg.original.hora_fin).slice(0, 5) : "",
+      hora_inicio: reg.original.hora_inicio
+        ? String(reg.original.hora_inicio).slice(0, 5)
+        : "",
+      hora_fin: reg.original.hora_fin
+        ? String(reg.original.hora_fin).slice(0, 5)
+        : "",
       descripcion: reg.original.descripcion || "",
-      casa_comunal_id: reg.original.casa_comunal_id ? String(reg.original.casa_comunal_id) : "",
+      casa_comunal_id: reg.original.casa_comunal_id
+        ? String(reg.original.casa_comunal_id)
+        : "",
     });
     setControlFormError("");
     setShowActModal(true);
@@ -635,8 +716,8 @@ export default function ControlFacilitadoresPage() {
   const openCreateActividad = () => {
     setActModalMode("create");
     const facId = selectedFacilitador ? String(selectedFacilitador) : "";
-    const casas = facId ? getCasasByFacilitador(facId) : [];
-    const casaId = casas[0]?.id ? String(casas[0].id) : "";
+    const casasAsig = facId ? getCasasByFacilitador(facId) : [];
+    const casaId = casasAsig[0]?.id ? String(casasAsig[0].id) : "";
     setActForm({
       id: "",
       facilitador_id: facId,
@@ -665,12 +746,24 @@ export default function ControlFacilitadoresPage() {
     try {
       const payload = {
         fecha: actForm.fecha,
-        hora_inicio: actForm.hora_inicio.length === 5 ? `${actForm.hora_inicio}:00` : actForm.hora_inicio,
-        hora_fin: actForm.hora_fin ? (actForm.hora_fin.length === 5 ? `${actForm.hora_fin}:00` : actForm.hora_fin) : null,
-        tipo_actividad: MAP_TO_BACKEND[actForm.tipo_actividad] || actForm.tipo_actividad,
+        hora_inicio:
+          actForm.hora_inicio.length === 5
+            ? `${actForm.hora_inicio}:00`
+            : actForm.hora_inicio,
+        hora_fin: actForm.hora_fin
+          ? actForm.hora_fin.length === 5
+            ? `${actForm.hora_fin}:00`
+            : actForm.hora_fin
+          : null,
+        tipo_actividad:
+          MAP_TO_BACKEND[actForm.tipo_actividad] || actForm.tipo_actividad,
         descripcion: actForm.descripcion,
-        casa_comunal_id: actForm.casa_comunal_id ? Number(actForm.casa_comunal_id) : null,
-        ...(actForm.facilitador_id ? { facilitador_id: Number(actForm.facilitador_id) } : {}),
+        casa_comunal_id: actForm.casa_comunal_id
+          ? Number(actForm.casa_comunal_id)
+          : null,
+        ...(actForm.facilitador_id
+          ? { facilitador_id: Number(actForm.facilitador_id) }
+          : {}),
       };
 
       if (actModalMode === "edit") {
@@ -682,16 +775,26 @@ export default function ControlFacilitadoresPage() {
       }
       setShowActModal(false);
 
-      listarActividadesFacilitadorRequest().then(data => {
-        setActividades(Array.isArray(data) ? data : []);
-      }).catch(() => { });
-
+      listarActividadesFacilitadorRequest()
+        .then((data) => {
+          setActividades(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {});
     } catch (err) {
-      const serverMsg = err?.response?.data?.detail || err?.response?.data?.message || err.message;
+      const serverMsg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err.message;
       const displayMsg = Array.isArray(serverMsg)
-        ? serverMsg.map(e => `${e.loc?.join && e.loc.join('.')}: ${e.msg}`).join(', ')
-        : (serverMsg || "Error al guardar actividad");
-      setControlFormError(typeof displayMsg === "string" ? displayMsg : JSON.stringify(displayMsg));
+        ? serverMsg
+            .map((e) => `${e.loc?.join && e.loc.join(".")}: ${e.msg}`)
+            .join(", ")
+        : serverMsg || "Error al guardar actividad";
+      setControlFormError(
+        typeof displayMsg === "string"
+          ? displayMsg
+          : JSON.stringify(displayMsg),
+      );
     } finally {
       setIsSavingAct(false);
     }
@@ -703,13 +806,14 @@ export default function ControlFacilitadoresPage() {
     setControlFormError("");
     try {
       await eliminarActividadFacilitadorRequest(confirmDeleteId);
-      setSuccessMessage("Actividad eliminada correctamente.");
+      setSuccessMessage("Actividad de control eliminada.");
       setConfirmDeleteId(null);
 
-      listarActividadesFacilitadorRequest().then(data => {
-        setActividades(Array.isArray(data) ? data : []);
-      }).catch(() => { });
-
+      listarActividadesFacilitadorRequest()
+        .then((data) => {
+          setActividades(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {});
     } catch (err) {
       setControlFormError(err.message || "Error al eliminar actividad");
     } finally {
@@ -730,12 +834,12 @@ export default function ControlFacilitadoresPage() {
       fecha: getTodayBolivia(),
       latitud_entrada:
         casasAsignadas[0]?.latitud !== undefined &&
-          casasAsignadas[0]?.latitud !== null
+        casasAsignadas[0]?.latitud !== null
           ? String(casasAsignadas[0].latitud)
           : "",
       longitud_entrada:
         casasAsignadas[0]?.longitud !== undefined &&
-          casasAsignadas[0]?.longitud !== null
+        casasAsignadas[0]?.longitud !== null
           ? String(casasAsignadas[0].longitud)
           : "",
     });
@@ -754,12 +858,12 @@ export default function ControlFacilitadoresPage() {
       hora_salida: toTimeInputValue(control.hora_salida),
       latitud_entrada:
         control.latitud_entrada === null ||
-          control.latitud_entrada === undefined
+        control.latitud_entrada === undefined
           ? ""
           : String(control.latitud_entrada),
       longitud_entrada:
         control.longitud_entrada === null ||
-          control.longitud_entrada === undefined
+        control.longitud_entrada === undefined
           ? ""
           : String(control.longitud_entrada),
     });
@@ -788,7 +892,6 @@ export default function ControlFacilitadoresPage() {
         setControlFormError("Debes seleccionar una casa comunal");
         return;
       }
-
       if (!controlForm.hora_entrada || !controlForm.hora_salida) {
         setControlFormError("Debes registrar hora de llegada y salida");
         return;
@@ -798,7 +901,6 @@ export default function ControlFacilitadoresPage() {
     setIsSaving(true);
     setControlFormError("");
 
-    // Enviar horas en formato simple HH:mm:ss como espera el backend
     const payload = {
       facilitador_id: Number(controlForm.facilitador_id),
       fecha: controlForm.fecha,
@@ -824,36 +926,28 @@ export default function ControlFacilitadoresPage() {
         await crearControlAdmin(payload);
         setSuccessMessage("Control creado exitosamente");
       }
-
       closeControlModal();
       loadControles();
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
-      // Extraer mensaje de error correctamente (puede ser string o objeto)
       let errorMsg = "Error al guardar el control";
-
       if (typeof err === "object" && err !== null) {
-        if (err.message) {
+        if (err.message)
           errorMsg =
             typeof err.message === "string"
               ? err.message
               : JSON.stringify(err.message);
-        } else if (err.msg) {
-          errorMsg = err.msg;
-        } else if (err.detail) {
-          errorMsg = err.detail;
-        }
+        else if (err.msg) errorMsg = err.msg;
+        else if (err.detail) errorMsg = err.detail;
       } else if (typeof err === "string") {
         errorMsg = err;
       }
-
       setControlFormError(errorMsg);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Solo admin puede ver este panel
   if (usuario?.rol !== "Administrador") {
     return (
       <div className="space-y-6">
@@ -868,7 +962,7 @@ export default function ControlFacilitadoresPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Estructura JSX del Panel de Control del Componente */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
@@ -879,36 +973,33 @@ export default function ControlFacilitadoresPage() {
           </p>
         </div>
 
-        <div title="Función en desarrollo — requiere actualización del backend para registrar en nombre del facilitador">
+        <div className="flex gap-2 self-start sm:self-auto">
           <Button
             variant="secondary"
-            disabled
-            className="gap-2 self-start sm:self-auto opacity-50 cursor-not-allowed"
+            onClick={handleGeneratePDF}
+            disabled={!selectedFacilitador}
+            className="gap-2"
+          >
+            <Download size={18} />
+            Exportar Reporte
+          </Button>
+
+          <Button
+            variant="primary"
+            onClick={openCreateControlModal}
+            className="gap-2"
           >
             <Plus size={18} />
-            Registrar Actividad
+            Crear control
           </Button>
         </div>
-
-        <Button
-          variant="primary"
-          onClick={openCreateControlModal}
-          className="gap-2 self-start sm:self-auto"
-        >
-          <Plus size={18} />
-          Crear control
-        </Button>
       </div>
 
-      {/* Success message */}
       {successMessage && (
         <Alert type="success" title="Éxito" message={successMessage} />
       )}
-
-      {/* Error */}
       {error && <Alert type="error" title="Error" message={error} />}
 
-      {/* Filtros */}
       <Card className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Select
@@ -916,10 +1007,10 @@ export default function ControlFacilitadoresPage() {
             value={selectedFacilitador}
             onChange={(e) => {
               setSelectedFacilitador(e.target.value);
-              setFilterCasa(""); // Resetear casa si cambia facilitador
+              setFilterCasa("");
             }}
           >
-
+            <option value="">Seleccione un facilitador</option>
             {facilitadores.map((fac) => (
               <option key={fac.id} value={fac.id}>
                 {fac.nombre_completo || fac.nombre}
@@ -933,7 +1024,7 @@ export default function ControlFacilitadoresPage() {
               value={filterCasa}
               onChange={(e) => setFilterCasa(e.target.value)}
             >
-
+              <option value="">Todas las casas</option>
               {getCasasByFacilitador(selectedFacilitador).map((casa) => (
                 <option key={casa.id} value={casa.id}>
                   {casa.nombre}
@@ -944,13 +1035,29 @@ export default function ControlFacilitadoresPage() {
 
           <div className="flex gap-2">
             <div className="flex-1">
-              <Select label="Mes" value={filterMes} onChange={(e) => setFilterMes(Number(e.target.value))}>
-                {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+              <Select
+                label="Mes"
+                value={filterMes}
+                onChange={(e) => setFilterMes(Number(e.target.value))}
+              >
+                {MESES.map((m, i) => (
+                  <option key={i} value={i + 1}>
+                    {m}
+                  </option>
+                ))}
               </Select>
             </div>
             <div className="flex-1">
-              <Select label="Año" value={filterAnio} onChange={(e) => setFilterAnio(Number(e.target.value))}>
-                {anios.map((a) => <option key={a} value={a}>{a}</option>)}
+              <Select
+                label="Año"
+                value={filterAnio}
+                onChange={(e) => setFilterAnio(Number(e.target.value))}
+              >
+                {anios.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
               </Select>
             </div>
           </div>
@@ -964,31 +1071,6 @@ export default function ControlFacilitadoresPage() {
             <option value="validados">Validados</option>
             <option value="pendientes">Pendientes de validar</option>
           </Select>
-
-          <div className="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-4 mt-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSelectedFacilitador("");
-                setFilterCasa("");
-                setFilterMes(mesActual);
-                setFilterAnio(anioActual);
-                setFilterEstado("todos");
-              }}
-            >
-              Limpiar
-            </Button>
-            {selectedFacilitador && (
-              <Button
-                variant="primary"
-                onClick={handleGeneratePDF}
-                className="flex items-center justify-center gap-2"
-              >
-                <Download size={18} className="mr-2" />
-                Generar PDF Mensual
-              </Button>
-            )}
-          </div>
         </div>
       </Card>
 
@@ -1054,7 +1136,10 @@ export default function ControlFacilitadoresPage() {
                       <div className="font-semibold text-blue-700 text-xs">
                         {reg.tipo}
                       </div>
-                      <div className="text-gray-500 text-xs mt-1 truncate max-w-[200px]" title={reg.descripcion}>
+                      <div
+                        className="text-gray-500 text-xs mt-1 truncate max-w-[200px]"
+                        title={reg.descripcion}
+                      >
                         {reg.descripcion}
                       </div>
                     </td>
@@ -1092,7 +1177,9 @@ export default function ControlFacilitadoresPage() {
                               <MapPin size={16} />
                             </a>
                           ) : (
-                            <span className="text-gray-300"><MapPin size={16} /></span>
+                            <span className="text-gray-300">
+                              <MapPin size={16} />
+                            </span>
                           )}
                           <button
                             onClick={() => {
@@ -1248,7 +1335,7 @@ export default function ControlFacilitadoresPage() {
                 !controlForm.facilitador_id || controlModalMode === "edit"
               }
             >
-              {casasDelFacilitador.map((casa) => (
+              {getCasasByFacilitador(controlForm.facilitador_id).map((casa) => (
                 <option key={casa.id} value={casa.id}>
                   {casa.nombre}
                 </option>
@@ -1503,11 +1590,15 @@ export default function ControlFacilitadoresPage() {
       <Modal
         isOpen={showActModal}
         onClose={() => setShowActModal(false)}
-        title={actModalMode === "create" ? "Registrar Actividad" : "Editar Actividad"}
+        title={
+          actModalMode === "create" ? "Registrar Actividad" : "Editar Actividad"
+        }
         maxWidth="max-w-lg"
       >
         <div className="space-y-4">
-          {controlFormError && <Alert type="error" title="Error" message={controlFormError} />}
+          {controlFormError && (
+            <Alert type="error" title="Error" message={controlFormError} />
+          )}
 
           {/* Facilitador — editable solo en modo crear */}
           <Select
@@ -1517,12 +1608,15 @@ export default function ControlFacilitadoresPage() {
               const facId = e.target.value;
               const casas = getCasasByFacilitador(facId);
               const casaId = casas[0]?.id ? String(casas[0].id) : "";
-              setActForm({ ...actForm, facilitador_id: facId, casa_comunal_id: casaId });
+              setActForm({
+                ...actForm,
+                facilitador_id: facId,
+                casa_comunal_id: casaId,
+              });
             }}
             required
             disabled={actModalMode === "edit"}
           >
-
             {facilitadores.map((fac) => (
               <option key={fac.id} value={fac.id}>
                 {fac.nombre_completo || fac.nombre}
@@ -1535,30 +1629,59 @@ export default function ControlFacilitadoresPage() {
             <Select
               label="Casa Comunal"
               value={actForm.casa_comunal_id}
-              onChange={(e) => setActForm({ ...actForm, casa_comunal_id: e.target.value })}
+              onChange={(e) =>
+                setActForm({ ...actForm, casa_comunal_id: e.target.value })
+              }
             >
-
               {getCasasByFacilitador(actForm.facilitador_id).map((casa) => (
-                <option key={casa.id} value={casa.id}>{casa.nombre}</option>
+                <option key={casa.id} value={casa.id}>
+                  {casa.nombre}
+                </option>
               ))}
             </Select>
           )}
 
-          <Input label="Fecha" type="date" value={actForm.fecha}
-            onChange={(e) => setActForm({ ...actForm, fecha: e.target.value })} required />
+          <Input
+            label="Fecha"
+            type="date"
+            value={actForm.fecha}
+            onChange={(e) => setActForm({ ...actForm, fecha: e.target.value })}
+            required
+          />
 
-          <Select label="Tipo de Actividad" value={actForm.tipo_actividad}
-            onChange={(e) => setActForm({ ...actForm, tipo_actividad: e.target.value })} required>
+          <Select
+            label="Tipo de Actividad"
+            value={actForm.tipo_actividad}
+            onChange={(e) =>
+              setActForm({ ...actForm, tipo_actividad: e.target.value })
+            }
+            required
+          >
             {TIPOS_ACTIVIDAD_UI.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </Select>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Hora inicio" type="time" value={actForm.hora_inicio}
-              onChange={(e) => setActForm({ ...actForm, hora_inicio: e.target.value })} required />
-            <Input label="Hora fin" type="time" value={actForm.hora_fin}
-              onChange={(e) => setActForm({ ...actForm, hora_fin: e.target.value })} />
+            <Input
+              label="Hora inicio"
+              type="time"
+              value={actForm.hora_inicio}
+              onChange={(e) =>
+                setActForm({ ...actForm, hora_inicio: e.target.value })
+              }
+              required
+            />
+            <Input
+              label="Hora fin"
+              type="time"
+              value={actForm.hora_fin}
+              onChange={(e) =>
+                setActForm({ ...actForm, hora_fin: e.target.value })
+              }
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1569,27 +1692,51 @@ export default function ControlFacilitadoresPage() {
               rows="3"
               placeholder="Descripción de la actividad..."
               value={actForm.descripcion}
-              onChange={(e) => setActForm({ ...actForm, descripcion: e.target.value })}
+              onChange={(e) =>
+                setActForm({ ...actForm, descripcion: e.target.value })
+              }
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setShowActModal(false)}>Cancelar</Button>
-            <Button variant="primary" onClick={handleSaveActividad} disabled={isSavingAct}>
-              {isSavingAct ? "Guardando..." : actModalMode === "create" ? "Registrar" : "Actualizar"}
+            <Button variant="secondary" onClick={() => setShowActModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveActividad}
+              disabled={isSavingAct}
+            >
+              {isSavingAct
+                ? "Guardando..."
+                : actModalMode === "create"
+                  ? "Registrar"
+                  : "Actualizar"}
             </Button>
           </div>
         </div>
       </Modal>
 
       {/* Modal Confirmar Eliminar Actividad */}
-      <Modal isOpen={!!confirmDeleteId} onClose={() => setConfirmDeleteId(null)}
-        title="Confirmar eliminación" maxWidth="max-w-sm">
+      <Modal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Confirmar eliminación"
+        maxWidth="max-w-sm"
+      >
         <p className="text-sm text-gray-600 mb-6">
-          ¿Estás seguro de que deseas eliminar esta actividad? Esta acción no se puede deshacer.
+          ¿Estás seguro de que deseas eliminar esta actividad? Esta acción no se
+          puede deshacer.
         </p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>Cancelar</Button>
-          <Button variant="primary" className="bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white" onClick={handleDeleteActividad} disabled={isDeleting}>
+          <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="primary"
+            className="bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white"
+            onClick={handleDeleteActividad}
+            disabled={isDeleting}
+          >
             {isDeleting ? "Eliminando..." : "Eliminar"}
           </Button>
         </div>
