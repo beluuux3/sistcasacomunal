@@ -148,7 +148,7 @@ export default function Inicio() {
                 <div className="flex gap-3">
                   <Phone size={18} className="text-gray-500 shrink-0 mt-0.5" />
                   <p className="text-gray-700">
-                    <strong>Celular:</strong> 75273874
+                    <strong>Celular:</strong> 65556462 - 65655831 - 79172704
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -161,7 +161,7 @@ export default function Inicio() {
                 <div className="flex gap-3">
                   <Clock size={18} className="text-gray-500 shrink-0 mt-0.5" />
                   <p className="text-gray-700">
-                    <strong>Horarios:</strong> 09:00 a 16:00
+                    <strong>Horarios:</strong> 8:30 a 12:30 - 14:30 a 18:30
                   </p>
                 </div>
               </div>
@@ -512,7 +512,7 @@ export default function Inicio() {
                 <div>
                   <p className="text-sm text-gray-600 font-semibold">Horario</p>
                   <p className="text-sm text-gray-900">
-                    Desde las 09:00 hasta las 16:00
+                    De 8:30 a 12:30 Y 14:30 a 18:30
                   </p>
                 </div>
               </div>
@@ -523,7 +523,7 @@ export default function Inicio() {
                     Contacto oficial
                   </p>
                   <p className="text-sm text-gray-900 font-semibold">
-                    Tel. 75273874
+                    Tel. 65556462 - 65655831 - 79172704
                   </p>
                 </div>
               </div>
@@ -543,7 +543,7 @@ export default function Inicio() {
                 </p>
                 <div className="flex items-center gap-2 mb-2">
                   <Phone size={16} className="text-amber-600" />
-                  <p className="text-sm text-gray-900">Contacto: 75273874</p>
+                  <p className="text-sm text-gray-900">Contacto: 65556462 - 65655831 - 79172704 </p>
                 </div>
                 <p className="text-xs text-gray-600">
                   Para asuntos administrativos y coordinacion de talleres
